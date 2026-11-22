@@ -228,7 +228,7 @@ details.rules li{margin:5px 0;max-width:70ch}
           </div>
         </div>
         <button class="btn alt" id="rejoinBtn" hidden>Rejoin last game</button>
-        <p class="fine">Friends need to be signed in and have Contributor access to this page. Add AI players in the lobby if you are short of people.</p>
+        <p class="fine" id="mpFine"></p>
       </div>
       <div class="panel wide stack" id="localPanel">
         <div>
@@ -265,10 +265,10 @@ details.rules li{margin:5px 0;max-width:70ch}
         <div>
           <div class="muted" style="font-size:13px">Game code</div>
           <div class="code" id="lobbyCode"></div>
-          <p class="muted" style="margin:4px 0 0;font-size:14px">Friends open this page, choose Join and type the code. The Share menu's Copy link also carries it.</p>
+          <p class="muted" style="margin:4px 0 0;font-size:14px">Friends open this page, type the code under Join and they are in. Keep this page open while you host.</p>
           <p class="note" id="lobbyMode" style="margin:8px 0 0"></p>
         </div>
-        <div class="row"><button class="btn alt small" id="copyCode">Copy code</button></div>
+        <div class="row"><button class="btn alt small" id="copyCode">Copy code</button><button class="btn alt small" id="copyLink">Copy invite link</button></div>
         <div><h3 style="margin-bottom:8px">Players <span class="muted mono" id="lobbyCount"></span></h3><ul class="plist" id="plist"></ul></div>
         <div class="row" id="lobbyBtns"></div>
         <div id="lobbyMsg" class="muted" style="font-size:14px"></div>
@@ -401,6 +401,7 @@ function buildHome(){
     leaveToHome();
   });
   $('#copyCode').addEventListener('click',function(){copyText(G.code||'')});
+  $('#copyLink').addEventListener('click',function(){copyText(location.href.split('#')[0]+'#g-'+String(G.code||'').toLowerCase())});
   $('#board').addEventListener('click',function(e){var c=e.target.closest('.cell');if(!c)return;var t=+c.dataset.t;trySelect(t)});
   $('#hand').addEventListener('click',function(e){var b=e.target.closest('[data-t]');if(!b||b.disabled)return;trySelect(+b.dataset.t)});
   $('#actions').addEventListener('click',function(e){var b=e.target.closest('[data-a]');if(!b||b.disabled)return;handleAction(b.dataset.a)});
@@ -419,9 +420,25 @@ function copyText(txt){
   fallback();
 }
 function updateHomeStatus(){
-  var n=$('#mpNote');
-  if(!G.db){n.hidden=false;n.className='note';n.textContent='Multiplayer needs you to be signed in with Contributor access. Solo play works either way.';$('#hostBtn').disabled=true;$('#joinBtn').disabled=true;$('#rejoinBtn').disabled=true}
-  else{n.hidden=true;$('#hostBtn').disabled=false;$('#joinBtn').disabled=false;$('#rejoinBtn').disabled=false}
+  var n=$('#mpNote'),f=$('#mpFine'),ok=!!G.net,inClaude=!!(window.claude&&window.claude.use);
+  var link='<a href="'+WEB_URL+'" target="_blank" rel="noopener">web version</a>';
+  if(ok&&G.net.kind==='mqtt'){
+    n.hidden=true;
+    f.textContent='Anyone with this page can join with the code. No account or sign-in needed. Keep the page open while you host, and add AI players in the lobby if you are short of people.';
+  }else if(ok){
+    n.hidden=false;n.className='note';
+    n.innerHTML='On this Claude page only the owner and invited editors can play online. To host or join with a code as anyone, open the '+link+'.';
+    f.textContent='Add AI players in the lobby if you are short of people.';
+  }else if(inClaude){
+    n.hidden=false;n.className='note';
+    n.innerHTML='Online rooms are not available on this page for your account. Open the '+link+' to host or join with a code. Solo and pass and play work here.';
+    f.textContent='';
+  }else{
+    n.hidden=false;n.className='note';
+    n.textContent='Online rooms could not load. Check your connection and reload the page. Solo and pass and play still work.';
+    f.textContent='';
+  }
+  $('#hostBtn').disabled=!ok;$('#joinBtn').disabled=!ok;$('#rejoinBtn').disabled=!ok;
 }
 function checkHash(){
   var m=/^#g-([a-z0-9]{4,6})$/i.exec(location.hash||'');
@@ -515,89 +532,319 @@ function resumeSolo(){
 
 /* ---------- multiplayer ---------- */
 var CODE_CHARS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-function makeCode(){var s='';for(var i=0;i<5;i++)s+=CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)];return s}
+var WEB_URL='https://jowanhavenga-bot.github.io/aquiresa/';
+var BROKERS={E:'wss://broker.emqx.io:8084/mqtt',H:'wss://broker.hivemq.com:8884/mqtt'};
+var ACT_TYPES=['place','found','pickSurvivor','pickOrder','dispose','declareEnd','buy'];
+function randChars(n){var s='';for(var i=0;i<n;i++)s+=CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)];return s}
+function normCode(raw){return String(raw||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'')}
+function userErr(msg){var e=new Error(msg);e.user=true;return e}
+function delay(ms){return new Promise(function(r){setTimeout(r,ms)})}
 function writeErr(e){
-  if(e&&e.code==='invalid_argument')toast('You can watch this page but not play. Ask the owner to give you Contributor access.');
+  if(e&&e.user)toast(e.message);
+  else if(e&&e.code==='invalid_argument')toast('Only the owner and invited editors can play online on this page. Open the web version to host or join with a code.');
   else toast('Could not reach the game. Check your connection and try again.');
 }
-async function hostGame(){
-  if(!G.db)return;
-  var name=getName();store.set('asa-name',name);
-  try{
-    var code,tries=0;
-    do{code=makeCode();var sn=await G.db.doc('games/'+code).get();if(!sn.exists)break;tries++}while(tries<8);
-    await G.db.doc('games/'+code).set({host:G.uid,status:'lobby',created:Date.now(),tycoon:G.tycoon});
-    await G.db.doc('games/'+code+'/lobby/'+G.uid).set({name:name,bot:false,t:Date.now()});
-    openRoom(code,true);
-  }catch(e){writeErr(e)}
-}
-async function joinGame(raw){
-  if(!G.db)return;
-  var code=String(raw||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
-  if(code.length<4){toast('Type the game code first.');return}
-  var name=getName();store.set('asa-name',name);
-  try{
-    var sn=await G.db.doc('games/'+code).get();
-    if(!sn.exists){toast('No game found with code '+code+'.');return}
+
+/* Net 1: shared database (Claude page, owner and editors only). */
+var dbNet={
+  kind:'db',guestActs:false,
+  host:async function(name,tycoon){
+    var db=G.db,code,tries=0;
+    do{code=randChars(5);var sn=await db.doc('games/'+code).get();if(!sn.exists)break;tries++}while(tries<8);
+    await db.doc('games/'+code).set({host:G.uid,status:'lobby',created:Date.now(),tycoon:tycoon});
+    await db.doc('games/'+code+'/lobby/'+G.uid).set({name:name,bot:false,t:Date.now()});
+    return code;
+  },
+  join:async function(code,name){
+    var db=G.db,sn=await db.doc('games/'+code).get();
+    if(!sn.exists)throw userErr('No game found with code '+code+'.');
     var meta=sn.data();
     if(meta.status==='lobby'){
-      var cur=await G.db.collection('games/'+code+'/lobby').get();
+      var cur=await db.collection('games/'+code+'/lobby').get();
       var mine=cur.docs.some(function(d){return d.id===G.uid});
-      if(!mine&&cur.size>=6){toast('That game is full.');return}
-      if(!mine)await G.db.doc('games/'+code+'/lobby/'+G.uid).set({name:name,bot:false,t:Date.now()});
+      if(!mine&&cur.size>=6)throw userErr('That game is full.');
+      if(!mine)await db.doc('games/'+code+'/lobby/'+G.uid).set({name:name,bot:false,t:Date.now()});
     }
-    openRoom(code,meta.host===G.uid);
-  }catch(e){writeErr(e)}
+    return {host:meta.host===G.uid};
+  },
+  open:function(code,isHost,h){
+    var db=G.db,unsubs=[];
+    unsubs.push(db.doc('games/'+code).onSnapshot(function(sn){h.meta(sn.exists?sn.data():null)},function(){h.warn('Lost connection to the game.')}));
+    unsubs.push(db.collection('games/'+code+'/lobby').onSnapshot(function(sn){
+      h.lobby(sn.docs.map(function(d){var v=d.data();return {id:d.id,name:v.name,bot:v.bot,t:v.t}}));
+    },function(){}));
+    unsubs.push(db.doc('games/'+code+'/gs/cur').onSnapshot(function(sn){if(sn.exists)h.state(sn.data())},function(){h.warn('Lost connection to the game.')}));
+    return function(){unsubs.forEach(function(u){try{u()}catch(e){}})};
+  },
+  lobbyAdd:function(code,e){return G.db.doc('games/'+code+'/lobby/'+e.id).set({name:e.name,bot:e.bot,t:Date.now()})},
+  lobbyRemove:function(code,id){return G.db.doc('games/'+code+'/lobby/'+id).delete()},
+  start:async function(code,s){await G.db.doc('games/'+code+'/gs/cur').set(s);await G.db.doc('games/'+code).update({status:'playing'})},
+  push:function(code,s){return G.db.doc('games/'+code+'/gs/cur').set(s)},
+  leave:async function(code,o){
+    if(o.screen!=='lobby')return;
+    if(o.host)await G.db.doc('games/'+code).delete();
+    else await G.db.doc('games/'+code+'/lobby/'+G.uid).delete();
+  },
+  botGate:async function(code,rev,gid){
+    try{
+      var r=await G.db.doc('games/'+code+'/lock/bots').acquire({holder:G.uid,ttlMs:4000});
+      if(!r.acquired)return 'retry';
+      var cur=await G.db.doc('games/'+code+'/gs/cur').get();
+      var cs=cur.exists?cur.data():null;
+      return (cs&&cs.gid===gid&&cs.rev===rev)?'ok':'no';
+    }catch(e){return 'no'}
+  }
+};
+
+/* Net 2: public MQTT relay (web version, nobody needs an account).
+   The host's page is the referee: it keeps the game state, runs the AI, applies each guest's move and publishes the result.
+   Room code = 1 letter naming the relay + 4 random characters. */
+var MQ={c:null,letter:null,code:null,on:{},timers:[],doc:null,seen:{},hostSeen:0,warned:false,myName:'Player',h:null,isHost:false};
+function mqT(code,n){return 'acquire-sa/v1/'+code+'/'+n}
+function mqFresh(d){return !!(d&&d.v===1&&d.ts&&Date.now()-d.ts<12*3600*1000&&Array.isArray(d.players))}
+function mqMeta(d){return {host:d.host,status:d.status,tycoon:d.tycoon,created:d.ts}}
+function mqDispatch(topic,payload){
+  var fn=MQ.on[topic];if(!fn)return;
+  var doc=null;
+  try{var txt=payload&&payload.toString?payload.toString():'';doc=txt?JSON.parse(txt):null}catch(e){return}
+  try{fn(doc)}catch(e){console.error(e)}
+}
+function mqConnect(letter){
+  return new Promise(function(res,rej){
+    var done=false,c;
+    try{c=window.mqtt.connect(BROKERS[letter],{clientId:'asa_'+randChars(10),clean:true,keepalive:30,connectTimeout:7000,reconnectPeriod:2500})}catch(e){rej(e);return}
+    var t=setTimeout(function(){if(!done){done=true;try{c.end(true)}catch(e){}rej(new Error('timeout'))}},8000);
+    c.on('message',mqDispatch);
+    c.on('error',function(){});
+    c.on('offline',function(){if(MQ.h&&MQ.c===c)MQ.h.warn('Connection lost. Trying to reconnect…')});
+    c.once('connect',function(){if(done)return;done=true;clearTimeout(t);res(c)});
+  });
+}
+function mqSub(topics){
+  return new Promise(function(res,rej){MQ.c.subscribe(topics,{qos:1},function(err){err?rej(err):res()})});
+}
+function mqPub(topic,obj,retain){
+  return new Promise(function(res,rej){
+    if(!MQ.c){rej(new Error('closed'));return}
+    MQ.c.publish(topic,obj==null?'':JSON.stringify(obj),{qos:1,retain:!!retain},function(err){err?rej(err):res()});
+  });
+}
+function mqProbe(code){
+  var topic=mqT(code,'lobby');
+  return new Promise(function(res){
+    var got=null;
+    MQ.on[topic]=function(d){got=d};
+    mqSub(topic).then(function(){
+      setTimeout(function(){delete MQ.on[topic];try{MQ.c.unsubscribe(topic)}catch(e){}res(got)},1200);
+    },function(){delete MQ.on[topic];res(null)});
+  });
+}
+function mqStop(){MQ.timers.forEach(function(t){clearInterval(t)});MQ.timers=[];MQ.on={};MQ.h=null}
+function mqEnd(){mqStop();try{if(MQ.c)MQ.c.end(true)}catch(e){}MQ.c=null;MQ.doc=null;MQ.seen={};MQ.code=null}
+function mqPublishLobby(){
+  var d=MQ.doc;d.ts=Date.now();
+  if(MQ.h){MQ.h.meta(mqMeta(d));MQ.h.lobby(d.players)}
+  return mqPub(mqT(MQ.code,'lobby'),d,true);
+}
+function mqHostIn(m){
+  if(!MQ.doc||!m||typeof m.id!=='string')return;
+  var d=MQ.doc,id=m.id.slice(0,40);
+  if(m.t==='act'){if(MQ.h)MQ.h.act(m);return}
+  var idx=d.players.findIndex(function(p){return p.id===id});
+  if(m.t==='hello'||m.t==='join'){
+    MQ.seen[id]=Date.now();
+    if(d.status==='lobby'){
+      var nm=String(m.name||'Player').slice(0,14)||'Player';
+      if(idx<0){if(d.players.length<6){d.players.push({id:id,name:nm,bot:false,t:Date.now()});mqPublishLobby().catch(function(){})}}
+      else if(d.players[idx].name!==nm){d.players[idx].name=nm;mqPublishLobby().catch(function(){})}
+    }
+  }else if(m.t==='leave'&&d.status==='lobby'&&id!==d.host&&idx>=0){
+    d.players.splice(idx,1);mqPublishLobby().catch(function(){});
+  }
+}
+function mqPrune(){
+  var d=MQ.doc;if(!d||d.status!=='lobby')return;
+  var now=Date.now(),changed=false;
+  d.players=d.players.filter(function(p){
+    if(p.bot||p.id===d.host)return true;
+    var s=MQ.seen[p.id];
+    if(s&&now-s>15000){changed=true;return false}
+    return true;
+  });
+  if(changed)mqPublishLobby().catch(function(){});
+}
+var mqttNet={
+  kind:'mqtt',guestActs:true,
+  host:async function(name,tycoon){
+    var letters=['E','H'],c=null,letter=null,code=null,i,tries;
+    mqEnd();
+    for(i=0;i<letters.length&&!c;i++){try{c=await mqConnect(letters[i]);letter=letters[i]}catch(e){c=null}}
+    if(!c)throw userErr('Could not reach the online relay. Check your connection and try again.');
+    MQ.c=c;MQ.letter=letter;MQ.myName=name;
+    for(tries=0;tries<6;tries++){
+      var cand=letter+randChars(4),d=await mqProbe(cand);
+      if(!mqFresh(d)){code=cand;break}
+    }
+    if(!code){mqEnd();throw userErr('Could not find a free game code. Try again.')}
+    MQ.code=code;
+    MQ.doc={v:1,host:G.uid,tycoon:tycoon,status:'lobby',players:[{id:G.uid,name:name,bot:false,t:Date.now()}],ts:Date.now()};
+    try{await mqPub(mqT(code,'lobby'),MQ.doc,true)}catch(e){mqEnd();throw userErr('Could not reach the online relay. Check your connection and try again.')}
+    return code;
+  },
+  join:async function(code,name){
+    var letter=code.charAt(0);
+    if(!BROKERS[letter])throw userErr('No game found with code '+code+'.');
+    mqEnd();
+    var c;
+    try{c=await mqConnect(letter)}catch(e){throw userErr('Could not reach the online relay. Check your connection and try again.')}
+    MQ.c=c;MQ.letter=letter;MQ.myName=name;MQ.code=code;
+    var d=await mqProbe(code);
+    if(!mqFresh(d)){mqEnd();throw userErr('No game found with code '+code+'.')}
+    var isHost=(d.host===G.uid);
+    if(!isHost&&d.status==='lobby'){
+      var inIt=d.players.some(function(p){return p.id===G.uid});
+      if(!inIt&&d.players.length>=6){mqEnd();throw userErr('That game is full.')}
+    }
+    if(isHost)MQ.doc=d;
+    return {host:isHost};
+  },
+  open:function(code,isHost,h){
+    var tl=mqT(code,'lobby'),ts=mqT(code,'state'),ti=mqT(code,'in'),tb=mqT(code,'hb');
+    MQ.h=h;MQ.code=code;MQ.isHost=isHost;MQ.hostSeen=Date.now();MQ.warned=false;MQ.on={};
+    MQ.on[tl]=function(d){
+      if(d===null){if(!isHost)h.meta(null);return}
+      if(!mqFresh(d)||isHost)return;
+      MQ.hostSeen=Date.now();MQ.warned=false;
+      h.meta(mqMeta(d));h.lobby(d.players);
+    };
+    MQ.on[ts]=function(s){if(s&&s.players)h.state(s)};
+    var topics=[tl,ts];
+    if(isHost){
+      topics.push(ti);
+      MQ.on[ti]=function(m){if(m)mqHostIn(m)};
+      MQ.doc.players.forEach(function(p){MQ.seen[p.id]=Date.now()});
+      h.meta(mqMeta(MQ.doc));h.lobby(MQ.doc.players);
+      MQ.timers.push(setInterval(function(){mqPub(tb,{ts:Date.now()},false).catch(function(){})},5000));
+      MQ.timers.push(setInterval(mqPrune,3000));
+    }else{
+      topics.push(tb);
+      MQ.on[tb]=function(){MQ.hostSeen=Date.now();MQ.warned=false};
+      var hello=function(){mqPub(ti,{t:'hello',id:G.uid,name:MQ.myName},false).catch(function(){})};
+      hello();
+      MQ.timers.push(setInterval(hello,4000));
+      MQ.timers.push(setInterval(function(){
+        if(!MQ.warned&&Date.now()-MQ.hostSeen>20000){MQ.warned=true;h.warn('The host looks offline. The game carries on when they are back.')}
+      },5000));
+    }
+    mqSub(topics).catch(function(){h.warn('Could not subscribe to the game. Check your connection.')});
+    return mqStop;
+  },
+  lobbyAdd:function(code,e){MQ.doc.players.push({id:e.id,name:e.name,bot:!!e.bot,t:Date.now()});return mqPublishLobby()},
+  lobbyRemove:function(code,id){
+    MQ.doc.players=MQ.doc.players.filter(function(p){return p.id!==id||p.id===MQ.doc.host});return mqPublishLobby();
+  },
+  start:async function(code,s){
+    await mqPub(mqT(code,'state'),s,true);
+    MQ.doc.status='playing';
+    await mqPublishLobby();
+  },
+  push:function(code,s){return mqPub(mqT(code,'state'),s,true)},
+  act:function(code,action,rev,gid){return mqPub(mqT(code,'in'),{t:'act',id:G.uid,gid:gid,rev:rev,action:action},false)},
+  leave:async function(code,o){
+    try{
+      if(MQ.c&&MQ.isHost&&o.host&&(o.screen==='lobby'||o.over)){
+        await Promise.race([Promise.all([mqPub(mqT(code,'lobby'),null,true),mqPub(mqT(code,'state'),null,true)]),delay(1500)]);
+      }else if(MQ.c&&!MQ.isHost&&o.screen==='lobby'){
+        await Promise.race([mqPub(mqT(code,'in'),{t:'leave',id:G.uid},false),delay(800)]);
+      }
+    }catch(e){}
+    mqEnd();
+  },
+  botGate:async function(){return 'ok'}
+};
+
+function setBusy(b){G.busy=b;$('#hostBtn').disabled=b||!G.net;$('#joinBtn').disabled=b||!G.net;$('#rejoinBtn').disabled=b||!G.net}
+async function hostGame(){
+  if(!G.net||G.busy)return;
+  var name=getName();store.set('asa-name',name);
+  setBusy(true);toast('Setting up your game…');
+  try{var code=await G.net.host(name,G.tycoon);openRoom(code,true)}catch(e){writeErr(e)}
+  setBusy(false);
+}
+async function joinGame(raw){
+  if(!G.net||G.busy)return;
+  var code=normCode(raw);
+  if(code.length<4){toast('Type the game code first.');return}
+  var name=getName();store.set('asa-name',name);
+  setBusy(true);toast('Looking for game '+code+'…');
+  try{var r=await G.net.join(code,name);openRoom(code,r.host)}
+  catch(e){
+    writeErr(e);
+    if(e&&e.user&&/No game found/.test(e.message)&&store.get('asa-last')===code){store.del('asa-last');$('#rejoinBtn').hidden=true}
+  }
+  setBusy(false);
+}
+function adoptState(ns){
+  G.serverState=ns;G.state=ns;
+  G.meIdx=ns.players.findIndex(function(p){return p.id===G.uid});
+  if(G.screen!=='game')showScreen('game');
+  onState();
+}
+function hostAct(m){
+  var s=G.state;
+  if(!s||G.mode!=='multi'||!G.isHost||s.phase==='over')return;
+  if(m.gid!==s.gid||m.rev!==s.rev)return;
+  var a=m.action;
+  if(!a||typeof a!=='object'||ACT_TYPES.indexOf(a.type)<0)return;
+  var idx=s.players.findIndex(function(p){return p.id===m.id&&!p.bot});
+  if(idx<0)return;
+  var r;try{r=E.apply(s,a,idx)}catch(e){return}
+  if(!r.ok)return;
+  commit(r.state);
 }
 function openRoom(code,isHost){
   closeRoom();
-  G.mode='multi';G.code=code;G.isHost=isHost;G.state=null;G.serverState=null;G.meIdx=-1;G.meta=null;G.lobby=[];G.sel=null;G.ui={};
+  G.mode='multi';G.code=code;G.isHost=isHost;G.state=null;G.serverState=null;G.meIdx=-1;G.meta=null;G.lobby=[];G.sel=null;G.ui={};G.waitKey=null;
   store.set('asa-last',code);
   try{location.hash='g-'+code.toLowerCase()}catch(e){}
-  var db=G.db;
-  G.metaRef=db.doc('games/'+code);G.lobbyRef=db.collection('games/'+code+'/lobby');G.stateRef=db.doc('games/'+code+'/gs/cur');
   showScreen('lobby');
   $('#lobbyCode').textContent=code;
   $('#lobbyMsg').textContent='Connecting…';
   clearTimeout(G.connTimer);
   G.connTimer=setTimeout(function(){if(G.screen==='lobby'&&!G.meta)$('#lobbyMsg').textContent='Still connecting. The game may be unreachable right now.'},10000);
-  G.unsubs.push(G.metaRef.onSnapshot(function(sn){
-    if(!sn.exists){if(G.mode==='multi'&&G.meta){toast('The host closed this game.');leaveToHome()}return}
-    G.meta=sn.data();G.isHost=(G.meta.host===G.uid);renderLobby();
-  },function(){toast('Lost connection to the game.')}));
-  G.unsubs.push(G.lobbyRef.onSnapshot(function(sn){
-    G.lobby=sn.docs.map(function(d){var v=d.data();return {id:d.id,name:String(v.name||'Player').slice(0,14),bot:!!v.bot,t:+v.t||0}}).sort(function(a,b){return a.t-b.t});
-    renderLobby();
-  },function(){}));
-  G.unsubs.push(G.stateRef.onSnapshot(function(sn){
-    if(!sn.exists)return;
-    var ns=E.clone(sn.data());
-    var cur=G.state;
-    if(cur&&ns.gid===cur.gid&&ns.rev<cur.rev)return;
-    G.serverState=ns;G.state=ns;
-    G.meIdx=ns.players.findIndex(function(p){return p.id===G.uid});
-    if(G.screen!=='game')showScreen('game');
-    onState();
-  },function(){toast('Lost connection to the game.')}));
+  G.closeNet=G.net.open(code,isHost,{
+    meta:function(m){
+      if(!m){if(G.mode==='multi'&&G.meta){toast('The host closed this game.');leaveToHome()}return}
+      G.meta=m;G.isHost=(m.host===G.uid);renderLobby();
+    },
+    lobby:function(list){
+      G.lobby=list.map(function(v){return {id:String(v.id),name:String(v.name||'Player').slice(0,14),bot:!!v.bot,t:+v.t||0}}).sort(function(a,b){return a.t-b.t});
+      renderLobby();
+    },
+    state:function(ns){
+      var cur=G.state;
+      if(G.net.kind==='mqtt'&&G.isHost&&cur&&ns.gid===cur.gid&&ns.rev<=cur.rev)return;
+      if(cur&&ns.gid===cur.gid&&ns.rev<cur.rev)return;
+      adoptState(E.clone(ns));
+    },
+    act:function(m){hostAct(m)},
+    warn:function(msg){toast(msg)}
+  });
 }
 function closeRoom(){
-  G.unsubs.forEach(function(u){try{u()}catch(e){}});G.unsubs=[];
+  if(G.closeNet){try{G.closeNet()}catch(e){}G.closeNet=null}
   clearTimeout(G.botTimer);clearTimeout(G.connTimer);
 }
 function leaveToHome(){
   hidePass();G.viewer=-1;
-  var wasLobbyHost=(G.mode==='multi'&&G.screen==='lobby'&&G.isHost);
-  var ref=G.metaRef,lref=G.lobbyRef,code=G.code,mode=G.mode,screen=G.screen;
+  var isHost=(G.mode==='multi'&&G.isHost),screen=G.screen,code=G.code,mode=G.mode,net=G.net;
+  var over=!!(G.state&&G.state.phase==='over');
   closeRoom();
-  if(mode==='multi'&&G.db&&code){
-    try{
-      if(screen==='lobby'){
-        if(wasLobbyHost){ref.delete();store.del('asa-last')}
-        else{G.db.doc('games/'+code+'/lobby/'+G.uid).delete()}
-      }
-    }catch(e){}
+  if(mode==='multi'&&net&&code){
+    try{net.leave(code,{host:isHost,screen:screen,over:over}).catch(function(){})}catch(e){}
+    if((isHost&&screen==='lobby')||(isHost&&over))store.del('asa-last');
   }
-  G.mode=null;G.state=null;G.code=null;G.meIdx=-1;G.sel=null;
+  G.mode=null;G.state=null;G.code=null;G.meIdx=-1;G.sel=null;G.waitKey=null;
   try{location.hash=''}catch(e){}
   showScreen('home');
   var saved=store.get('asa-solo');$('#resumeBtn').hidden=true;
@@ -620,27 +867,28 @@ function renderLobby(){
   $('#lobbyBtns').innerHTML=G.isHost?
     '<button class="btn" data-l="start"'+(n<2?' disabled':'')+'>Start game</button><button class="btn alt" data-l="addbot"'+(n>=6?' disabled':'')+'>Add AI player</button>':'';
 }
+
 async function lobbyAction(a){
   if(!G.isHost)return;
   try{
     if(a==='addbot'){
       if(G.lobby.length>=6)return;
-      var used=G.lobby.map(function(p){return p.name});
-      var usedL=used.map(function(x){return x.toLowerCase()});var nm=shuffled(BOT_NAMES).filter(function(x){return usedL.indexOf(x.toLowerCase())<0})[0]||'Bot';
+      var used=G.lobby.map(function(p){return p.name.toLowerCase()});
+      var nm=shuffled(BOT_NAMES).filter(function(x){return used.indexOf(x.toLowerCase())<0})[0]||'Bot';
       var id='bot-'+Math.random().toString(36).slice(2,7);
-      await G.db.doc('games/'+G.code+'/lobby/'+id).set({name:nm,bot:true,t:Date.now()});
+      await G.net.lobbyAdd(G.code,{id:id,name:nm,bot:true});
     }else if(a==='start'){
       if(G.lobby.length<2){toast('You need at least 2 players.');return}
       var defs=G.lobby.slice(0,6).map(function(p){return {id:p.id,name:p.name,bot:p.bot}});
       var s=E.newGame(defs,null,{tycoon:!(G.meta&&G.meta.tycoon===false)});s.gid=newId();
-      await G.stateRef.set(s);
-      await G.metaRef.update({status:'playing'});
+      await G.net.start(G.code,s);
+      if(G.net.kind==='mqtt')adoptState(s);
     }
   }catch(e){writeErr(e)}
 }
 async function removeBot(id){
   if(!G.isHost)return;
-  try{await G.db.doc('games/'+G.code+'/lobby/'+id).delete()}catch(e){writeErr(e)}
+  try{await G.net.lobbyRemove(G.code,id)}catch(e){writeErr(e)}
 }
 async function rematch(){
   if(G.mode==='local'){
@@ -652,17 +900,19 @@ async function rematch(){
   if(!G.isHost||!G.state)return;
   var defs=G.state.players.map(function(p){return {id:p.id,name:p.name,bot:p.bot}});
   var s=E.newGame(defs,null,{tycoon:G.state.tycoon!==false});s.gid=newId();
-  try{await G.stateRef.set(s)}catch(e){writeErr(e)}
+  G.sel=null;G.ui={};
+  commit(s);
 }
 
 /* ---------- state flow ---------- */
 function commit(ns){
   G.state=ns;
   if(G.mode==='solo'||G.mode==='local'){saveSolo();onState();return}
+  G.meIdx=ns.players.findIndex(function(p){return p.id===G.uid});
   onState();
-  G.stateRef.set(ns).then(function(){G.serverState=ns}).catch(function(e){
+  Promise.resolve(G.net.push(G.code,ns)).then(function(){G.serverState=ns}).catch(function(e){
     writeErr(e);
-    if(G.serverState&&G.state===ns){G.state=G.serverState;onState()}
+    if(G.net.kind==='db'&&G.serverState&&G.state===ns){G.state=G.serverState;onState()}
   });
 }
 function humanAct(action){
@@ -670,6 +920,15 @@ function humanAct(action){
   var r=E.apply(s,action,G.meIdx);
   if(!r.ok){toast(r.error);return}
   G.sel=null;
+  if(G.mode==='multi'&&G.net.guestActs&&!G.isHost){
+    var rev=s.rev,gid=s.gid;
+    G.waitKey=gid+':'+rev;render();
+    G.net.act(G.code,action,rev,gid).catch(function(){toast('Could not send your move. Check your connection.')});
+    setTimeout(function(){
+      if(G.mode==='multi'&&G.state&&G.state.gid===gid&&G.state.rev===rev){G.waitKey=null;render();toast('No answer from the host yet. Check your connection.')}
+    },6000);
+    return;
+  }
   commit(r.state);
 }
 function onState(){
@@ -691,21 +950,16 @@ function scheduleBot(){
   var rev=s.rev,gid=s.gid,delay;
   if(G.mode==='solo'||G.mode==='local')delay=850+Math.random()*500;
   else if(G.isHost)delay=1000+Math.random()*600;
+  else if(G.net&&G.net.kind==='mqtt')return;
   else delay=7000+Math.random()*3000;
   G.botTimer=setTimeout(function(){runBot(rev,gid)},delay);
 }
 async function runBot(rev,gid){
   var s=G.state;if(!s||s.rev!==rev||s.gid!==gid||s.phase==='over')return;
   if(G.mode==='multi'){
-    try{
-      var lock=G.db.doc('games/'+G.code+'/lock/bots');
-      var r=await lock.acquire({holder:G.uid,ttlMs:4000});
-      if(!r.acquired){G.botTimer=setTimeout(function(){runBot(rev,gid)},2500);return}
-      var cur=await G.stateRef.get();
-      var cs=cur.exists?cur.data():null;
-      if(!cs||cs.gid!==gid||cs.rev!==rev)return;
-    }catch(e){return}
-    if(G.state!==s)return;
+    var gate=await G.net.botGate(G.code,rev,gid);
+    if(gate==='retry'){G.botTimer=setTimeout(function(){runBot(rev,gid)},2500);return}
+    if(gate!=='ok'||G.state!==s)return;
   }
   var actor=E.actorOf(s),act=E.botAction(s);
   if(!act){return}
@@ -841,6 +1095,7 @@ function renderActions(){
     if(G.mode==='multi'&&G.isHost&&!bot)h+='<p class="muted" style="font-size:13px">Player gone quiet?</p><button class="btn alt small" data-a="tobot:'+a+'">Let the AI play for '+esc(who.name)+'</button>';
     el.innerHTML=h;return;
   }
+  if(G.waitKey===s.gid+':'+s.rev){el.innerHTML='<h3>Sending your move…</h3><p class="muted">Waiting for the host to confirm.</p>';return}
   var sz=E.sizes(s.board),c,i;
   if(s.phase==='place'){
     h='<h3>Play a tile</h3>';
@@ -1012,10 +1267,10 @@ async function initCaps(){
   }catch(e){}
   try{if(window.claude&&window.claude.use)G.db=await window.claude.use('db')}catch(e){}
   if(!G.uid){G.uid=store.get('asa-uid')||('g'+Math.random().toString(36).slice(2,10));store.set('asa-uid',G.uid)}
+  G.net=G.db?dbNet:((window.mqtt&&window.mqtt.connect)?mqttNet:null);
   updateHomeStatus();checkHash();
 }
 buildHome();
-updateHomeStatus();
 initCaps();
 window.addEventListener('hashchange',checkHash);
 var rzT;window.addEventListener('resize',function(){clearTimeout(rzT);rzT=setTimeout(function(){if(G.state&&G.state.phase==='over'&&!$('#endPanel').hidden)drawChart(G.state)},150)});
