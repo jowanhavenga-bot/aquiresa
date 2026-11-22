@@ -1,0 +1,1023 @@
+<title>Acquire SA</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column on phones; board and actions left, market and players right from 900px. */
+:root{
+  --bg:#e8ecf0; --surface:#ffffff; --surface2:#f1f4f7; --ink:#111b25; --muted:#53626f; --line:#ced6de;
+  --btn:#13283b; --btnink:#ffffff; --focus:#0b6bcb; --good:#17753f; --bad:#b3261e;
+  --board:#1b2733; --cell:#293746; --cellline:#38495a; --cellink:#8fa2b4; --unal:#d4dce4; --unalink:#1a2530;
+  --pl0:#7c3aed; --pl1:#db2777; --pl2:#0d9488; --pl3:#c2410c; --pl4:#475569; --pl5:#4d7c0f;
+  --c1:#d95a00; --c1i:#fff; --c2:#008a8f; --c2i:#fff; --c3:#0b6bcb; --c3i:#fff; --c4:#ffcb05; --c4i:#1a1a1a;
+  --c5:#00843d; --c5i:#fff; --c6:#e60000; --c6i:#fff; --c7:#1b1b1f; --c7i:#fff;
+  --display:"Bricolage Grotesque","Arial Narrow",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c131a; --surface:#15202a; --surface2:#1c2a36; --ink:#e7edf3; --muted:#92a3b3; --line:#2a3947;
+  --btn:#e7edf3; --btnink:#10202e; --focus:#6db3ff; --good:#46c07a; --bad:#ff7b72;
+  --board:#080d13; --cell:#16222d; --cellline:#223240; --cellink:#6b7e90; --unal:#4f6173; --unalink:#f1f5f9;
+  --pl0:#a78bfa; --pl1:#f472b6; --pl2:#2dd4bf; --pl3:#fb923c; --pl4:#94a3b8; --pl5:#a3e635;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c131a; --surface:#15202a; --surface2:#1c2a36; --ink:#e7edf3; --muted:#92a3b3; --line:#2a3947;
+  --btn:#e7edf3; --btnink:#10202e; --focus:#6db3ff; --good:#46c07a; --bad:#ff7b72;
+  --board:#080d13; --cell:#16222d; --cellline:#223240; --cellink:#6b7e90; --unal:#4f6173; --unalink:#f1f5f9;
+  --pl0:#a78bfa; --pl1:#f472b6; --pl2:#2dd4bf; --pl3:#fb923c; --pl4:#94a3b8; --pl5:#a3e635;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-block:14px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,summary:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.shell{max-width:1120px;margin:0 auto}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.brand{font-family:var(--display);font-weight:800;font-size:26px;letter-spacing:-.02em;line-height:1}
+.brand span{font-weight:600;color:var(--muted);margin-left:6px;font-size:.62em;letter-spacing:.14em;text-transform:uppercase}
+.topinfo{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right;min-width:0}
+h1,h2,h3{font-family:var(--display);margin:0;letter-spacing:-.01em;text-wrap:balance}
+h2{font-size:20px} h3{font-size:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0}
+.panel + .panel{margin-top:12px}
+.muted{color:var(--muted)} .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;border-radius:8px;border:1px solid var(--btn);
+  background:var(--btn);color:var(--btnink);font-weight:600}
+.btn.alt{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.small{min-height:36px;padding:4px 12px;font-size:14px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.chain{border:0;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.stack{display:flex;flex-direction:column;gap:12px}
+input[type=text]{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:44px;min-width:0;width:100%}
+label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{min-width:44px;min-height:44px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);font-weight:600;font-family:var(--mono)}
+.seg button[aria-pressed=true]{background:var(--btn);color:var(--btnink);border-color:var(--btn)}
+/* home */
+.home{display:grid;gap:12px;grid-template-columns:1fr}
+.hero{padding:6px 0 4px}
+.hero h1{font-size:clamp(34px,9vw,56px);font-weight:800;line-height:.98}
+.hero p{margin:10px 0 0;max-width:46ch;color:var(--muted)}
+.legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px}
+.legend div{display:flex;align-items:center;gap:8px;font-size:14px;min-width:0}
+.sw{display:inline-block;width:14px;height:14px;border-radius:4px;flex:none;box-shadow:inset 0 0 0 1px rgba(128,128,128,.45)}
+.tier{font-size:11px;color:var(--muted);font-family:var(--mono)}
+details.rules summary{cursor:pointer;font-weight:600;min-height:32px;display:flex;align-items:center}
+details.rules ul{margin:8px 0 0;padding-left:20px}
+details.rules li{margin:5px 0;max-width:70ch}
+.fine{font-size:12px;color:var(--muted);max-width:70ch}
+.note{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:14px}
+.note.bad{border-color:var(--bad)}
+/* lobby */
+.code{font-family:var(--mono);font-weight:600;font-size:clamp(34px,10vw,52px);letter-spacing:.12em}
+.plist{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.plist li{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);min-width:0}
+.plist .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.badge{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--muted);flex:none}
+/* game */
+.game{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:900px){.game{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);align-items:start}.home{grid-template-columns:1.1fr 1fr}.home .wide{grid-column:1/-1}}
+.status{display:flex;align-items:center;gap:12px;min-width:0}
+.av{width:36px;height:36px;border-radius:50%;background:var(--btn);color:var(--btnink);display:grid;place-items:center;font-weight:700;font-family:var(--display);flex:none}
+.status .t1{font-weight:600;font-size:16px;line-height:1.2}
+.status .t2{font-size:13px;color:var(--muted)}
+.ticker{margin-top:8px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px;display:grid;gap:2px}
+.ticker div:last-child{color:var(--ink)}
+.board{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:2px;background:var(--board);padding:6px;border-radius:10px;touch-action:manipulation}
+.cell{aspect-ratio:1;border-radius:4px;background:var(--cell);display:grid;place-items:center;position:relative;min-width:0;font-family:var(--mono)}
+.cell i{font-style:normal;font-size:clamp(7px,2.1vw,10px);color:var(--cellink);letter-spacing:-.02em}
+.cell b{font-size:clamp(8px,2.5vw,13px);font-weight:600}
+.cell.u{background:var(--unal)} .cell.u b{width:34%;height:34%;border-radius:50%;background:var(--unalink);opacity:.55}
+.cell.mine{box-shadow:inset 0 0 0 1.5px var(--cellink)} .cell.mine i{color:#fff}
+.cell.sel{box-shadow:inset 0 0 0 3px #fff;background:var(--cellline)} .cell.sel i{color:#fff;font-weight:600}
+.cell.last{outline:2px solid #fff;outline-offset:-2px;z-index:1}
+.cell[class*=" c"]{box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.c1{background:var(--c1)!important;color:var(--c1i)}.c2{background:var(--c2)!important;color:var(--c2i)}.c3{background:var(--c3)!important;color:var(--c3i)}
+.c4{background:var(--c4)!important;color:var(--c4i)}.c5{background:var(--c5)!important;color:var(--c5i)}.c6{background:var(--c6)!important;color:var(--c6i)}.c7{background:var(--c7)!important;color:var(--c7i)}
+.hand{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:8px}
+.tile{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:8px;border:2px solid var(--line);background:var(--surface);min-width:0;min-height:58px}
+.tile .tl{font-family:var(--mono);font-weight:600;font-size:20px;line-height:1}
+.tile .th{font-size:11px;color:var(--muted);text-align:center;display:flex;gap:4px;align-items:center;line-height:1.15}
+.tile.sel{border-color:var(--ink);background:var(--surface2)}
+.tile.off{opacity:.5}
+.tile:disabled{cursor:default}
+.tilecap{font-size:13px;color:var(--muted);margin:0 0 6px}
+.act h3{margin-bottom:6px}
+.act p{margin:6px 0}
+.chainbtns{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:10px}
+.stepper{display:flex;align-items:center;gap:8px}
+.stepper .n{min-width:28px;text-align:center;font-family:var(--mono);font-weight:600;font-size:18px}
+.stepper button{width:44px;height:44px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);font-size:20px;font-weight:600;line-height:1}
+.stepper button:disabled{opacity:.35;cursor:not-allowed}
+.line{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);min-width:0}
+.line:first-of-type{border-top:0}
+.line .l{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.line .l span.tx{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sum{margin-top:10px;font-family:var(--mono);font-size:14px}
+.think{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted);margin-right:8px;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.think{animation:none}}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{white-space:nowrap;font-size:11px;font-weight:600;color:var(--muted);text-align:right;text-transform:uppercase;letter-spacing:.06em;padding:0 6px 6px}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl td{white-space:nowrap;padding:6px;border-top:1px solid var(--line);text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.tbl td:first-child{font-family:var(--body);font-weight:500}
+.tbl tr.off td{color:var(--muted)}
+.tbl .cn{display:flex;align-items:center;gap:8px}
+.prow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:2px 10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.prow:first-of-type{border-top:0}
+.prow .av{width:30px;height:30px;font-size:14px;grid-row:span 2}
+.prow.turn .av{outline:3px solid var(--focus);outline-offset:2px}
+.prow .pn{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .pc{white-space:nowrap;font-family:var(--mono);font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.prow .chips{display:flex;gap:4px;flex-wrap:wrap;min-height:20px}
+.prow .pw{white-space:nowrap;font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.chip{font-family:var(--mono);font-size:11px;font-weight:600;border-radius:4px;padding:1px 6px;box-shadow:inset 0 0 0 1px rgba(128,128,128,.4)}
+.log{margin:8px 0 0;padding-left:20px;font-size:13px;color:var(--muted);max-height:260px;overflow:auto}
+.log li{margin:3px 0}
+.results td.w,.results tr.w td{font-weight:700}
+.results tr.w td:first-child::after{content:" winner";font-family:var(--mono);font-size:11px;color:var(--good);margin-left:6px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:max(18px,env(safe-area-inset-bottom,0px));background:var(--btn);color:var(--btnink);padding:10px 16px;border-radius:8px;max-width:min(92vw,460px);font-size:14px;z-index:20;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.sheet{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.seg.wide button{font-family:var(--body);padding:0 18px}
+.endgrid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.stat{border:1px solid var(--line);background:var(--surface2);border-radius:8px;padding:12px;min-width:0}
+.stat .sl{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stat .sn{font-family:var(--display);font-weight:800;font-size:21px;line-height:1.15;margin:4px 0;overflow-wrap:anywhere}
+.stat .sd{font-size:13px;color:var(--muted)}
+.stat.me{border-color:var(--ink)}
+.chartbox{width:100%;min-width:0}
+.chartbox svg{display:block;width:100%;height:auto;overflow:visible}
+.chartbox .gl{stroke:var(--line);stroke-width:1}
+.chartbox .ax{fill:var(--muted);font:11px var(--mono)}
+.chartbox .nm{fill:var(--ink);font:500 11px var(--body)}
+.chartbox .nm.me{font-weight:700}
+.legendrow{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;font-size:13px}
+.legendrow span{display:inline-flex;align-items:center;gap:6px;min-width:0}
+.legendrow i{width:16px;height:4px;border-radius:2px;display:inline-block;flex:none}
+.endsec{margin-top:18px}
+.endsec h3{margin-bottom:8px}
+.note b.pl{font-weight:600}
+.namegrid{display:grid;gap:8px 12px;grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.seg button:disabled{opacity:.35;cursor:not-allowed}
+.pass{position:fixed;inset:0;z-index:30;background:var(--bg);overflow:auto;display:flex;align-items:center;justify-content:center;
+  padding-block:max(20px,env(safe-area-inset-top,0px)) max(20px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.passcard{width:min(100%,460px);display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:24px 18px}
+.passcard .ticker{width:100%;text-align:left}
+.passcard .btn{width:100%}
+.av.big{width:76px;height:76px;font-size:34px}
+.passname{font-family:var(--display);font-weight:800;font-size:clamp(34px,10vw,52px);line-height:1;letter-spacing:-.02em;overflow-wrap:anywhere}
+</style>
+
+<div class="shell">
+  <header class="top">
+    <div class="brand">Acquire<span>SA</span></div>
+    <div class="row" style="flex-wrap:nowrap;gap:10px;min-width:0">
+      <div class="topinfo" id="topinfo"></div>
+      <button class="btn alt small" id="menuBtn" hidden>Menu</button>
+    </div>
+  </header>
+
+  <div id="menu" class="sheet" hidden>
+    <button class="btn alt small" id="leaveBtn">Leave game</button>
+    <button class="btn alt small" id="menuClose">Close</button>
+  </div>
+
+  <main>
+    <!-- HOME -->
+    <section id="home" class="home">
+      <div class="hero wide">
+        <h1>Build it. Merge it. Own it.</h1>
+        <p>A tile-laying takeover game for 2 to 6 players. Found South African companies, grow them, hold the biggest stakes when they merge, and finish with the most cash.</p>
+      </div>
+      <div class="panel stack">
+        <div>
+          <label for="nameInput">Your name</label>
+          <input type="text" id="nameInput" maxlength="14" autocomplete="nickname" placeholder="Player">
+        </div>
+        <div>
+          <label id="modeLbl">Bonus payouts</label>
+          <div class="seg wide" id="modeSeg" role="group" aria-labelledby="modeLbl">
+            <button data-m="tycoon" aria-pressed="true">Tycoon</button><button data-m="classic" aria-pressed="false">Classic</button>
+          </div>
+          <p class="fine" id="modeNote" style="margin:6px 0 0"></p>
+        </div>
+        <div>
+          <h3>Play solo against the AI</h3>
+          <p class="muted" style="margin:4px 0 8px">How many AI opponents?</p>
+          <div class="seg" id="botSeg" role="group" aria-label="Number of AI opponents">
+            <button data-n="1" aria-pressed="false">1</button><button data-n="2" aria-pressed="false">2</button>
+            <button data-n="3" aria-pressed="true">3</button><button data-n="4" aria-pressed="false">4</button><button data-n="5" aria-pressed="false">5</button>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn" id="soloBtn">Start solo game</button>
+          <button class="btn alt" id="resumeBtn" hidden>Resume solo game</button>
+        </div>
+      </div>
+      <div class="panel stack">
+        <h3>Play with friends</h3>
+        <div id="mpNote" class="note" hidden></div>
+        <div class="row"><button class="btn" id="hostBtn">Host a game</button></div>
+        <div>
+          <label for="codeInput">Have a code?</label>
+          <div class="row" style="flex-wrap:nowrap">
+            <input type="text" id="codeInput" maxlength="6" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABCDE" style="text-transform:uppercase;font-family:var(--mono);letter-spacing:.1em">
+            <button class="btn alt" id="joinBtn" style="flex:none">Join</button>
+          </div>
+        </div>
+        <button class="btn alt" id="rejoinBtn" hidden>Rejoin last game</button>
+        <p class="fine">Friends need to be signed in and have Contributor access to this page. Add AI players in the lobby if you are short of people.</p>
+      </div>
+      <div class="panel wide stack" id="localPanel">
+        <div>
+          <h3>Pass and play</h3>
+          <p class="muted" style="margin:4px 0 0;max-width:62ch">One phone, everyone takes a turn. A cover screen hides each player's tiles while the phone changes hands.</p>
+        </div>
+        <div>
+          <p class="muted" style="margin:0 0 6px">How many players?</p>
+          <div class="seg" id="localSeg" role="group" aria-label="Number of players">
+            <button data-n="2" aria-pressed="true">2</button><button data-n="3" aria-pressed="false">3</button><button data-n="4" aria-pressed="false">4</button><button data-n="5" aria-pressed="false">5</button><button data-n="6" aria-pressed="false">6</button>
+          </div>
+        </div>
+        <div class="namegrid" id="localNames"></div>
+        <div>
+          <p class="muted" style="margin:0 0 6px">Add AI players (optional)</p>
+          <div class="seg" id="localAiSeg" role="group" aria-label="Number of AI players">
+            <button data-n="0" aria-pressed="true">0</button><button data-n="1" aria-pressed="false">1</button><button data-n="2" aria-pressed="false">2</button><button data-n="3" aria-pressed="false">3</button><button data-n="4" aria-pressed="false">4</button>
+          </div>
+        </div>
+        <div class="row"><button class="btn" id="localBtn">Start pass and play</button><button class="btn alt" id="resumeLocalBtn" hidden>Resume pass and play</button></div>
+        <p class="fine">Uses the bonus payout setting above.</p>
+      </div>
+      <div class="panel wide">
+        <h3>The seven companies</h3>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="panel wide"><details class="rules"><summary>How to play</summary><div id="rulesHome"></div></details></div>
+      <p class="fine wide">An unofficial, non-commercial fan game based on the classic tile-and-stock board game. Company names are used as in-game labels only, with no logos, and are not affiliated with or endorsed by the companies.</p>
+    </section>
+
+    <!-- LOBBY -->
+    <section id="lobby" hidden>
+      <div class="panel stack">
+        <div>
+          <div class="muted" style="font-size:13px">Game code</div>
+          <div class="code" id="lobbyCode"></div>
+          <p class="muted" style="margin:4px 0 0;font-size:14px">Friends open this page, choose Join and type the code. The Share menu's Copy link also carries it.</p>
+          <p class="note" id="lobbyMode" style="margin:8px 0 0"></p>
+        </div>
+        <div class="row"><button class="btn alt small" id="copyCode">Copy code</button></div>
+        <div><h3 style="margin-bottom:8px">Players <span class="muted mono" id="lobbyCount"></span></h3><ul class="plist" id="plist"></ul></div>
+        <div class="row" id="lobbyBtns"></div>
+        <div id="lobbyMsg" class="muted" style="font-size:14px"></div>
+      </div>
+    </section>
+
+    <!-- GAME -->
+    <section id="game" class="game" hidden>
+      <div class="stack" style="min-width:0">
+        <div class="panel">
+          <div class="status"><div class="av" id="stAv"></div><div style="min-width:0"><div class="t1" id="stT1"></div><div class="t2" id="stT2"></div></div></div>
+          <div class="ticker" id="ticker"></div>
+        </div>
+        <div id="boardWrap"><div class="board" id="board" aria-label="Game board"></div></div>
+        <div class="panel act" id="actions" aria-live="polite"></div>
+        <div class="panel" id="handPanel"><p class="tilecap">Your tiles</p><div class="hand" id="hand"></div></div>
+      </div>
+      <div class="stack" style="min-width:0">
+        <div class="panel"><h3 style="margin-bottom:8px">Market</h3><div style="overflow-x:auto"><table class="tbl" id="market"></table></div><p class="fine" style="margin:8px 0 0">Market cap is the share price times the 25 shares in each company.</p></div>
+        <div class="panel"><h3 style="margin-bottom:4px">Players</h3><div id="players"></div></div>
+        <div class="panel"><details class="rules"><summary>How to play</summary><div id="rulesGame"></div></details></div>
+        <div class="panel"><details><summary style="cursor:pointer;font-weight:600;min-height:32px;display:flex;align-items:center">Game log</summary><ol class="log" id="log"></ol></details></div>
+      </div>
+      <div class="panel" id="endPanel" style="grid-column:1/-1" hidden>
+        <h2>How the game went</h2>
+        <p class="muted" style="margin:2px 0 10px;font-size:14px">Net worth is cash, shares at today's prices and any bonuses you would collect if the game ended then.</p>
+        <div class="chartbox" id="chart"></div>
+        <div class="legendrow" id="chartLegend"></div>
+        <div class="endsec"><h3>The nerd stats</h3><div class="endgrid" id="stats"></div></div>
+      </div>
+    </section>
+  </main>
+  <div id="pass" class="pass" role="dialog" aria-modal="true" aria-labelledby="passName" hidden>
+    <div class="panel passcard">
+      <div class="muted">Pass the phone to</div>
+      <div class="av big" id="passAv"></div>
+      <div class="passname" id="passName"></div>
+      <div class="muted" id="passPhase" style="font-size:14px"></div>
+      <div class="ticker" id="passLog"></div>
+      <button class="btn" id="passBtn"></button>
+      <p class="fine" style="margin:0">Everyone else, look away. Your tiles show once you tap.</p>
+    </div>
+  </div>
+  <div id="toast" class="toast" hidden role="status"></div>
+</div>
+
+<script>
+/*ENGINE*/
+</script>
+<script>
+(function(){
+'use strict';
+var E=window.AcquireEngine, CH=E.CHAINS;
+function $(s,r){return (r||document).querySelector(s)}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+var BOT_NAMES=['Sipho','Naledi','Pieter','Ayanda','Johan','Lerato','Thabo','Zanele'];
+var TIERS=['entry','mid','premium'];
+var RULES='<ul>'
++'<li><b>Goal.</b> Finish with the most cash. Cash comes from buying shares early, bonuses, and selling shares at the end.</li>'
++'<li><b>Your turn.</b> Play one tile, then buy up to 3 shares in companies on the board, then draw a tile back up to 6.</li>'
++'<li><b>Placing a tile.</b> Next to nothing, it just sits there. Next to a lone tile, the two found a company: choose any company not yet on the board and take a free share. Next to a company, it grows. Between two or more companies, they merge.</li>'
++'<li><b>Safe companies.</b> A company with 11 or more tiles is safe and cannot be swallowed. A tile that would join two safe companies is dead and is swapped at the start of your turn. A tile that would found an eighth company is held until a company disappears.</li>'
++'<li><b>Mergers.</b> The biggest company survives (if tied, the player who merged picks). The swallowed company pays out its bonuses, then, starting with the merger player, everyone sells their shares in it, trades them 2 for 1 for the survivor, or keeps them.</li>'
++'<li><b>Bonuses.</b> Paid to the biggest shareholders of a swallowed company, and again for every company still on the board when the game ends. Tycoon mode pays the top 3 (10, 5 and 3 times the share price). Classic mode pays the top 2 (10 and 5 times). Players tied on shares pool the prizes for the places they share and split them, rounded up to the next R100, and the next player down takes the next place. A prize nobody can claim goes to the top shareholder.</li>'
++'<li><b>Prices and market cap.</b> A share costs more as its company grows. Mr Price and Checkers are the cheapest per share, Vodacom and Woolworths the most expensive. Market cap is the share price times the 25 shares in the company, a quick read on what it is worth.</li>'
++'<li><b>Ending.</b> Once any company reaches 41 tiles, or every company on the board is safe, the player whose turn it is may end the game. Final bonuses are paid, every share is sold, and the most cash wins.</li>'
++'</ul>';
+
+var G={mode:null,tycoon:true,viewer:-1,passFor:-1,localN:2,localAi:0,code:null,isHost:false,state:null,meIdx:-1,meta:null,lobby:[],sel:null,ui:{},botTimer:null,unsubs:[],db:null,uid:null,
+  serverState:null,cells:null,soloBots:3,screen:'home',confirmLeave:false,connTimer:null,stateRef:null,metaRef:null,lobbyRef:null,toastTimer:null};
+
+var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},del:function(k){try{localStorage.removeItem(k)}catch(e){}}};
+function newId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function shuffled(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
+function tkey(t){return (t%12)*9+Math.floor(t/12)}
+function toast(msg){var el=$('#toast');el.textContent=msg;el.hidden=false;clearTimeout(G.toastTimer);G.toastTimer=setTimeout(function(){el.hidden=true},4200)}
+function getName(){var v=($('#nameInput').value||'').trim().slice(0,14);return v||'Player'}
+function initial(n){return esc((String(n).trim()[0]||'?').toUpperCase())}
+function money(n){return E.money(n)}
+function chainSw(c){return '<span class="sw" style="background:var(--c'+c+')"></span>'}
+function chip(c,n){return '<span class="chip" style="background:var(--c'+c+');color:var(--c'+c+'i)">'+CH[c].abbr+' '+n+'</span>'}
+
+/* ---------- screens ---------- */
+function showScreen(name){
+  G.screen=name;
+  ['home','lobby','game'].forEach(function(n){$('#'+n).hidden=(n!==name)});
+  $('#menuBtn').hidden=(name==='home');
+  if(name==='home'){$('#menu').hidden=true}
+  var ti='';
+  if(name==='lobby')ti='Lobby '+esc(G.code||'');
+  if(name==='game'&&G.mode==='multi')ti='Room '+esc(G.code||'');
+  if(name==='game'&&G.mode==='solo')ti='Solo vs AI';
+  if(name==='game'&&G.mode==='local')ti='Pass and play';
+  $('#topinfo').innerHTML=ti;
+  window.scrollTo&&window.scrollTo(0,0);
+}
+
+/* ---------- home ---------- */
+function buildHome(){
+  $('#legend').innerHTML=CH.slice(1).map(function(c){return '<div>'+chainSw(c.id)+'<span>'+esc(c.name)+'</span><span class="tier">'+TIERS[c.tier]+'</span></div>'}).join('');
+  $('#rulesHome').innerHTML=RULES;$('#rulesGame').innerHTML=RULES;
+  var nm=store.get('asa-name');if(nm)$('#nameInput').value=nm;
+  if(store.get('asa-mode')==='classic')G.tycoon=false;
+  setModeUi();
+  Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'),function(b){b.addEventListener('click',function(){G.tycoon=(b.dataset.m==='tycoon');store.set('asa-mode',G.tycoon?'tycoon':'classic');setModeUi()})});
+  var saved=store.get('asa-solo');
+  if(saved){try{var o=JSON.parse(saved);if(o&&o.state&&o.state.phase!=='over')$('#resumeBtn').hidden=false}catch(e){}}
+  if(store.get('asa-last'))$('#rejoinBtn').hidden=false;
+  Array.prototype.forEach.call(document.querySelectorAll('#botSeg button'),function(b){
+    b.addEventListener('click',function(){G.soloBots=+b.dataset.n;Array.prototype.forEach.call(document.querySelectorAll('#botSeg button'),function(x){x.setAttribute('aria-pressed',x===b?'true':'false')})});
+    if(+b.dataset.n===G.soloBots)b.setAttribute('aria-pressed','true');else b.setAttribute('aria-pressed','false');
+  });
+  $('#soloBtn').addEventListener('click',function(){startSolo(G.soloBots)});
+  buildLocalInputs();setLocalUi();
+  Array.prototype.forEach.call(document.querySelectorAll('#localSeg button'),function(b){b.addEventListener('click',function(){G.localN=+b.dataset.n;G.localAi=Math.min(G.localAi,6-G.localN);buildLocalInputs();setLocalUi()})});
+  Array.prototype.forEach.call(document.querySelectorAll('#localAiSeg button'),function(b){b.addEventListener('click',function(){G.localAi=+b.dataset.n;setLocalUi()})});
+  $('#localBtn').addEventListener('click',startLocal);
+  $('#resumeLocalBtn').addEventListener('click',resumeLocal);
+  $('#passBtn').addEventListener('click',confirmPass);
+  refreshLocalResume();
+  $('#resumeBtn').addEventListener('click',resumeSolo);
+  $('#hostBtn').addEventListener('click',hostGame);
+  $('#joinBtn').addEventListener('click',function(){joinGame($('#codeInput').value)});
+  $('#codeInput').addEventListener('keydown',function(e){if(e.key==='Enter')joinGame($('#codeInput').value)});
+  $('#rejoinBtn').addEventListener('click',function(){joinGame(store.get('asa-last')||'')});
+  $('#menuBtn').addEventListener('click',function(){$('#menu').hidden=!$('#menu').hidden;G.confirmLeave=false;$('#leaveBtn').textContent='Leave game'});
+  $('#menuClose').addEventListener('click',function(){$('#menu').hidden=true});
+  $('#leaveBtn').addEventListener('click',function(){
+    if(!G.confirmLeave){G.confirmLeave=true;$('#leaveBtn').textContent='Tap again to leave';return}
+    leaveToHome();
+  });
+  $('#copyCode').addEventListener('click',function(){copyText(G.code||'')});
+  $('#board').addEventListener('click',function(e){var c=e.target.closest('.cell');if(!c)return;var t=+c.dataset.t;trySelect(t)});
+  $('#hand').addEventListener('click',function(e){var b=e.target.closest('[data-t]');if(!b||b.disabled)return;trySelect(+b.dataset.t)});
+  $('#actions').addEventListener('click',function(e){var b=e.target.closest('[data-a]');if(!b||b.disabled)return;handleAction(b.dataset.a)});
+  $('#lobbyBtns').addEventListener('click',function(e){var b=e.target.closest('[data-l]');if(!b||b.disabled)return;lobbyAction(b.dataset.l)});
+  $('#plist').addEventListener('click',function(e){var b=e.target.closest('[data-rm]');if(!b)return;removeBot(b.dataset.rm)});
+  var cells='';for(var t=0;t<108;t++)cells+='<div class="cell" data-t="'+t+'"></div>';
+  $('#board').innerHTML=cells;G.cells=Array.prototype.slice.call($('#board').children);
+}
+function setModeUi(){
+  Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'),function(b){b.setAttribute('aria-pressed',(b.dataset.m==='tycoon')===G.tycoon?'true':'false')});
+  $('#modeNote').textContent=G.tycoon?'The top 3 shareholders are paid on every merger and at the end: 10x, 5x and 3x the share price.':'The top 2 shareholders are paid on every merger and at the end: 10x and 5x the share price.';
+}
+function copyText(txt){
+  function fallback(){toast('Code: '+txt)}
+  try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){toast('Copied '+txt)},fallback);return}}catch(e){}
+  fallback();
+}
+function updateHomeStatus(){
+  var n=$('#mpNote');
+  if(!G.db){n.hidden=false;n.className='note';n.textContent='Multiplayer needs you to be signed in with Contributor access. Solo play works either way.';$('#hostBtn').disabled=true;$('#joinBtn').disabled=true;$('#rejoinBtn').disabled=true}
+  else{n.hidden=true;$('#hostBtn').disabled=false;$('#joinBtn').disabled=false;$('#rejoinBtn').disabled=false}
+}
+function checkHash(){
+  var m=/^#g-([a-z0-9]{4,6})$/i.exec(location.hash||'');
+  if(m&&G.screen==='home'){$('#codeInput').value=m[1].toUpperCase();}
+}
+
+/* ---------- pass and play ---------- */
+function buildLocalInputs(){
+  var box=$('#localNames'),old=[],saved=[],i;
+  Array.prototype.forEach.call(box.querySelectorAll('input'),function(x){old.push(x.value)});
+  try{saved=JSON.parse(store.get('asa-lnames')||'[]')}catch(e){saved=[]}
+  var h='';
+  for(i=0;i<G.localN;i++){
+    var v=old[i]!==undefined?old[i]:(typeof saved[i]==='string'&&!/^Player \d$/.test(saved[i])?saved[i]:'');
+    h+='<div><label for="lname'+i+'">Player '+(i+1)+'</label><input type="text" id="lname'+i+'" maxlength="14" autocomplete="off" placeholder="Player '+(i+1)+'" value="'+esc(v)+'"></div>';
+  }
+  box.innerHTML=h;
+}
+function setLocalUi(){
+  G.localAi=Math.min(G.localAi,6-G.localN);
+  Array.prototype.forEach.call(document.querySelectorAll('#localSeg button'),function(b){b.setAttribute('aria-pressed',(+b.dataset.n===G.localN)?'true':'false')});
+  Array.prototype.forEach.call(document.querySelectorAll('#localAiSeg button'),function(b){var n=+b.dataset.n;b.disabled=(G.localN+n>6);b.setAttribute('aria-pressed',(n===G.localAi)?'true':'false')});
+}
+function refreshLocalResume(){
+  var ok=false;
+  try{var o=JSON.parse(store.get('asa-local')||'null');ok=!!(o&&o.state&&o.state.phase!=='over'&&o.state.hist)}catch(e){}
+  $('#resumeLocalBtn').hidden=!ok;
+}
+function startLocal(){
+  var n=G.localN,ai=Math.min(G.localAi,6-n),names=[],i;
+  for(i=0;i<n;i++){var inp=$('#lname'+i);names.push(((inp&&inp.value)||'').trim().slice(0,14)||('Player '+(i+1)))}
+  store.set('asa-lnames',JSON.stringify(names));
+  var used=[],defs=[];
+  names.forEach(function(nm,k){var u=nm,j=2;while(used.indexOf(u.toLowerCase())>=0)u=nm+' '+(j++);used.push(u.toLowerCase());defs.push({id:'h'+k,name:u,bot:false})});
+  shuffled(BOT_NAMES).filter(function(x){return used.indexOf(x.toLowerCase())<0}).slice(0,ai).forEach(function(b,k){defs.push({id:'bot'+k,name:b,bot:true})});
+  var s=E.newGame(defs,null,{tycoon:G.tycoon});s.gid=newId();
+  G.mode='local';G.state=s;G.viewer=-1;G.meIdx=-1;G.sel=null;G.ui={};
+  saveSolo();showScreen('game');onState();
+}
+function resumeLocal(){
+  try{
+    var o=JSON.parse(store.get('asa-local'));if(!o.state||!o.state.hist)throw new Error('old save');
+    G.mode='local';G.state=o.state;G.viewer=-1;G.meIdx=-1;G.sel=null;G.ui={};showScreen('game');onState();
+  }catch(e){toast('Could not resume that game.');store.del('asa-local');refreshLocalResume()}
+}
+function syncLocal(){
+  var s=G.state,a=E.actorOf(s);
+  if(s.phase==='over'||a<0){G.meIdx=-1;G.viewer=-1;hidePass();return}
+  if(s.players[a].bot){G.meIdx=-1;G.viewer=-1;hidePass();return}
+  if(G.viewer===a){G.meIdx=a;hidePass()}
+  else{G.meIdx=-1;showPass(a)}
+}
+function setInert(on){
+  ['main','header.top'].forEach(function(q){var el=document.querySelector(q);if(el){if(on)el.setAttribute('inert','');else el.removeAttribute('inert')}});
+}
+function showPass(a){
+  var s=G.state,p=s.players[a];
+  $('#passPhase').innerHTML=phaseText(s);
+  $('#passLog').innerHTML=s.log.slice(-3).map(function(l){return '<div>'+esc(l)+'</div>'}).join('');
+  if(!$('#pass').hidden&&G.passFor===a)return;
+  G.passFor=a;
+  $('#passAv').textContent=(String(p.name).trim()[0]||'?').toUpperCase();
+  $('#passName').textContent=p.name;
+  $('#passBtn').textContent="I'm "+p.name;
+  $('#pass').hidden=false;setInert(true);
+  setTimeout(function(){try{$('#passBtn').focus()}catch(e){}},30);
+}
+function hidePass(){
+  var el=$('#pass');
+  if(!el.hidden){el.hidden=true}
+  G.passFor=-1;setInert(false);
+}
+function confirmPass(){
+  var a=G.passFor;if(a<0||!G.state)return;
+  G.viewer=a;G.meIdx=a;G.sel=null;hidePass();window.scrollTo&&window.scrollTo(0,0);render();
+}
+
+/* ---------- solo ---------- */
+function startSolo(nBots){
+  var name=getName();store.set('asa-name',name);
+  var defs=[{id:'you',name:name,bot:false}].concat(shuffled(BOT_NAMES.filter(function(x){return x.toLowerCase()!==name.toLowerCase()})).slice(0,nBots).map(function(n,i){return {id:'bot'+i,name:n,bot:true}}));
+  var s=E.newGame(defs,null,{tycoon:G.tycoon});s.gid=newId();
+  G.mode='solo';G.state=s;G.meIdx=s.players.findIndex(function(p){return p.id==='you'});G.soloBots=nBots;G.sel=null;G.ui={};
+  saveSolo();showScreen('game');onState();
+}
+function saveSolo(){if(!G.state)return;if(G.mode==='solo')store.set('asa-solo',JSON.stringify({state:G.state}));else if(G.mode==='local')store.set('asa-local',JSON.stringify({state:G.state}))}
+function resumeSolo(){
+  try{var o=JSON.parse(store.get('asa-solo'));if(!o.state||!o.state.hist)throw new Error('old save');G.mode='solo';G.state=o.state;G.meIdx=G.state.players.findIndex(function(p){return p.id==='you'});G.soloBots=G.state.players.length-1;G.sel=null;G.ui={};showScreen('game');onState()}
+  catch(e){toast('Could not resume that game.');store.del('asa-solo');$('#resumeBtn').hidden=true}
+}
+
+/* ---------- multiplayer ---------- */
+var CODE_CHARS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function makeCode(){var s='';for(var i=0;i<5;i++)s+=CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)];return s}
+function writeErr(e){
+  if(e&&e.code==='invalid_argument')toast('You can watch this page but not play. Ask the owner to give you Contributor access.');
+  else toast('Could not reach the game. Check your connection and try again.');
+}
+async function hostGame(){
+  if(!G.db)return;
+  var name=getName();store.set('asa-name',name);
+  try{
+    var code,tries=0;
+    do{code=makeCode();var sn=await G.db.doc('games/'+code).get();if(!sn.exists)break;tries++}while(tries<8);
+    await G.db.doc('games/'+code).set({host:G.uid,status:'lobby',created:Date.now(),tycoon:G.tycoon});
+    await G.db.doc('games/'+code+'/lobby/'+G.uid).set({name:name,bot:false,t:Date.now()});
+    openRoom(code,true);
+  }catch(e){writeErr(e)}
+}
+async function joinGame(raw){
+  if(!G.db)return;
+  var code=String(raw||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(code.length<4){toast('Type the game code first.');return}
+  var name=getName();store.set('asa-name',name);
+  try{
+    var sn=await G.db.doc('games/'+code).get();
+    if(!sn.exists){toast('No game found with code '+code+'.');return}
+    var meta=sn.data();
+    if(meta.status==='lobby'){
+      var cur=await G.db.collection('games/'+code+'/lobby').get();
+      var mine=cur.docs.some(function(d){return d.id===G.uid});
+      if(!mine&&cur.size>=6){toast('That game is full.');return}
+      if(!mine)await G.db.doc('games/'+code+'/lobby/'+G.uid).set({name:name,bot:false,t:Date.now()});
+    }
+    openRoom(code,meta.host===G.uid);
+  }catch(e){writeErr(e)}
+}
+function openRoom(code,isHost){
+  closeRoom();
+  G.mode='multi';G.code=code;G.isHost=isHost;G.state=null;G.serverState=null;G.meIdx=-1;G.meta=null;G.lobby=[];G.sel=null;G.ui={};
+  store.set('asa-last',code);
+  try{location.hash='g-'+code.toLowerCase()}catch(e){}
+  var db=G.db;
+  G.metaRef=db.doc('games/'+code);G.lobbyRef=db.collection('games/'+code+'/lobby');G.stateRef=db.doc('games/'+code+'/gs/cur');
+  showScreen('lobby');
+  $('#lobbyCode').textContent=code;
+  $('#lobbyMsg').textContent='Connecting…';
+  clearTimeout(G.connTimer);
+  G.connTimer=setTimeout(function(){if(G.screen==='lobby'&&!G.meta)$('#lobbyMsg').textContent='Still connecting. The game may be unreachable right now.'},10000);
+  G.unsubs.push(G.metaRef.onSnapshot(function(sn){
+    if(!sn.exists){if(G.mode==='multi'&&G.meta){toast('The host closed this game.');leaveToHome()}return}
+    G.meta=sn.data();G.isHost=(G.meta.host===G.uid);renderLobby();
+  },function(){toast('Lost connection to the game.')}));
+  G.unsubs.push(G.lobbyRef.onSnapshot(function(sn){
+    G.lobby=sn.docs.map(function(d){var v=d.data();return {id:d.id,name:String(v.name||'Player').slice(0,14),bot:!!v.bot,t:+v.t||0}}).sort(function(a,b){return a.t-b.t});
+    renderLobby();
+  },function(){}));
+  G.unsubs.push(G.stateRef.onSnapshot(function(sn){
+    if(!sn.exists)return;
+    var ns=E.clone(sn.data());
+    var cur=G.state;
+    if(cur&&ns.gid===cur.gid&&ns.rev<cur.rev)return;
+    G.serverState=ns;G.state=ns;
+    G.meIdx=ns.players.findIndex(function(p){return p.id===G.uid});
+    if(G.screen!=='game')showScreen('game');
+    onState();
+  },function(){toast('Lost connection to the game.')}));
+}
+function closeRoom(){
+  G.unsubs.forEach(function(u){try{u()}catch(e){}});G.unsubs=[];
+  clearTimeout(G.botTimer);clearTimeout(G.connTimer);
+}
+function leaveToHome(){
+  hidePass();G.viewer=-1;
+  var wasLobbyHost=(G.mode==='multi'&&G.screen==='lobby'&&G.isHost);
+  var ref=G.metaRef,lref=G.lobbyRef,code=G.code,mode=G.mode,screen=G.screen;
+  closeRoom();
+  if(mode==='multi'&&G.db&&code){
+    try{
+      if(screen==='lobby'){
+        if(wasLobbyHost){ref.delete();store.del('asa-last')}
+        else{G.db.doc('games/'+code+'/lobby/'+G.uid).delete()}
+      }
+    }catch(e){}
+  }
+  G.mode=null;G.state=null;G.code=null;G.meIdx=-1;G.sel=null;
+  try{location.hash=''}catch(e){}
+  showScreen('home');
+  var saved=store.get('asa-solo');$('#resumeBtn').hidden=true;
+  if(saved){try{var o=JSON.parse(saved);if(o&&o.state&&o.state.phase!=='over')$('#resumeBtn').hidden=false}catch(e){}}
+  $('#rejoinBtn').hidden=!store.get('asa-last');
+  refreshLocalResume();
+}
+function renderLobby(){
+  if(G.screen!=='lobby')return;
+  var n=G.lobby.length,hostId=G.meta&&G.meta.host;
+  if(G.meta)$('#lobbyMsg').textContent=G.isHost?(n<2?'You need at least 2 players. Add an AI or wait for friends.':'Ready when you are.'):'Waiting for the host to start the game…';
+  $('#lobbyCount').textContent=n+' / 6';
+  var tc=!(G.meta&&G.meta.tycoon===false);
+  $('#lobbyMode').textContent=(tc?'Tycoon payouts: the top 3 shareholders are paid on every merger.':'Classic payouts: the top 2 shareholders are paid on every merger.');
+  $('#plist').innerHTML=G.lobby.map(function(p){
+    var tags=(p.id===hostId?'<span class="badge">host</span>':'')+(p.bot?'<span class="badge">AI</span>':'')+(p.id===G.uid?'<span class="badge">you</span>':'');
+    var rm=(G.isHost&&p.bot)?'<button class="btn alt small" data-rm="'+esc(p.id)+'" aria-label="Remove '+esc(p.name)+'">Remove</button>':'';
+    return '<li><div class="av" style="width:30px;height:30px;font-size:14px">'+initial(p.name)+'</div><span class="nm">'+esc(p.name)+'</span>'+tags+rm+'</li>';
+  }).join('');
+  $('#lobbyBtns').innerHTML=G.isHost?
+    '<button class="btn" data-l="start"'+(n<2?' disabled':'')+'>Start game</button><button class="btn alt" data-l="addbot"'+(n>=6?' disabled':'')+'>Add AI player</button>':'';
+}
+async function lobbyAction(a){
+  if(!G.isHost)return;
+  try{
+    if(a==='addbot'){
+      if(G.lobby.length>=6)return;
+      var used=G.lobby.map(function(p){return p.name});
+      var usedL=used.map(function(x){return x.toLowerCase()});var nm=shuffled(BOT_NAMES).filter(function(x){return usedL.indexOf(x.toLowerCase())<0})[0]||'Bot';
+      var id='bot-'+Math.random().toString(36).slice(2,7);
+      await G.db.doc('games/'+G.code+'/lobby/'+id).set({name:nm,bot:true,t:Date.now()});
+    }else if(a==='start'){
+      if(G.lobby.length<2){toast('You need at least 2 players.');return}
+      var defs=G.lobby.slice(0,6).map(function(p){return {id:p.id,name:p.name,bot:p.bot}});
+      var s=E.newGame(defs,null,{tycoon:!(G.meta&&G.meta.tycoon===false)});s.gid=newId();
+      await G.stateRef.set(s);
+      await G.metaRef.update({status:'playing'});
+    }
+  }catch(e){writeErr(e)}
+}
+async function removeBot(id){
+  if(!G.isHost)return;
+  try{await G.db.doc('games/'+G.code+'/lobby/'+id).delete()}catch(e){writeErr(e)}
+}
+async function rematch(){
+  if(G.mode==='local'){
+    var defsL=G.state.players.map(function(p){return {id:p.id,name:p.name,bot:p.bot}});
+    var sl=E.newGame(defsL,null,{tycoon:G.state.tycoon!==false});sl.gid=newId();
+    G.viewer=-1;G.meIdx=-1;G.sel=null;G.ui={};G.state=sl;saveSolo();onState();return;
+  }
+  if(G.mode==='solo'){G.tycoon=(G.state.tycoon!==false);startSolo(G.soloBots);return}
+  if(!G.isHost||!G.state)return;
+  var defs=G.state.players.map(function(p){return {id:p.id,name:p.name,bot:p.bot}});
+  var s=E.newGame(defs,null,{tycoon:G.state.tycoon!==false});s.gid=newId();
+  try{await G.stateRef.set(s)}catch(e){writeErr(e)}
+}
+
+/* ---------- state flow ---------- */
+function commit(ns){
+  G.state=ns;
+  if(G.mode==='solo'||G.mode==='local'){saveSolo();onState();return}
+  onState();
+  G.stateRef.set(ns).then(function(){G.serverState=ns}).catch(function(e){
+    writeErr(e);
+    if(G.serverState&&G.state===ns){G.state=G.serverState;onState()}
+  });
+}
+function humanAct(action){
+  var s=G.state;if(!s||G.meIdx<0)return;
+  var r=E.apply(s,action,G.meIdx);
+  if(!r.ok){toast(r.error);return}
+  G.sel=null;
+  commit(r.state);
+}
+function onState(){
+  var s=G.state;if(!s)return;
+  if(G.ui.rev!==s.rev||G.ui.gid!==s.gid){G.ui={rev:s.rev,gid:s.gid}}
+  if(G.mode==='local')syncLocal();
+  var myTurnPlace=(G.meIdx>=0&&E.actorOf(s)===G.meIdx&&s.phase==='place');
+  if(!myTurnPlace)G.sel=null;
+  else if(G.sel!=null&&s.players[G.meIdx].hand.indexOf(G.sel)<0)G.sel=null;
+  render();scheduleBot();
+}
+function render(){renderStatus();renderBoard();renderActions();renderHand();renderMarket();renderPlayers();renderLog();renderEnd()}
+
+/* ---------- bots ---------- */
+function scheduleBot(){
+  clearTimeout(G.botTimer);
+  var s=G.state;if(!s||s.phase==='over')return;
+  var actor=E.actorOf(s),pl=s.players[actor];if(!pl||!pl.bot)return;
+  var rev=s.rev,gid=s.gid,delay;
+  if(G.mode==='solo'||G.mode==='local')delay=850+Math.random()*500;
+  else if(G.isHost)delay=1000+Math.random()*600;
+  else delay=7000+Math.random()*3000;
+  G.botTimer=setTimeout(function(){runBot(rev,gid)},delay);
+}
+async function runBot(rev,gid){
+  var s=G.state;if(!s||s.rev!==rev||s.gid!==gid||s.phase==='over')return;
+  if(G.mode==='multi'){
+    try{
+      var lock=G.db.doc('games/'+G.code+'/lock/bots');
+      var r=await lock.acquire({holder:G.uid,ttlMs:4000});
+      if(!r.acquired){G.botTimer=setTimeout(function(){runBot(rev,gid)},2500);return}
+      var cur=await G.stateRef.get();
+      var cs=cur.exists?cur.data():null;
+      if(!cs||cs.gid!==gid||cs.rev!==rev)return;
+    }catch(e){return}
+    if(G.state!==s)return;
+  }
+  var actor=E.actorOf(s),act=E.botAction(s);
+  if(!act){return}
+  var res=E.apply(s,act,actor);
+  if(!res.ok){console.error('bot move rejected',res.error,act);return}
+  commit(res.state);
+}
+
+/* ---------- interaction ---------- */
+function trySelect(t){
+  var s=G.state;if(!s||G.meIdx<0)return;
+  if(E.actorOf(s)!==G.meIdx||s.phase!=='place')return;
+  var hand=s.players[G.meIdx].hand;if(hand.indexOf(t)<0)return;
+  if(!E.isPlayable(s.board,t))return;
+  G.sel=(G.sel===t)?null:t;
+  renderBoard();renderActions();renderHand();
+}
+function handleAction(a){
+  var s=G.state;if(!s)return;
+  var i=a.indexOf(':'),k=i<0?a:a.slice(0,i),arg=i<0?'':a.slice(i+1);
+  var me=G.meIdx>=0?s.players[G.meIdx]:null;
+  switch(k){
+    case 'place':if(G.sel!=null)humanAct({type:'place',t:G.sel});break;
+    case 'found':humanAct({type:'found',chain:+arg});break;
+    case 'surv':humanAct({type:'pickSurvivor',chain:+arg});break;
+    case 'ord':humanAct({type:'pickOrder',chain:+arg});break;
+    case 'end':humanAct({type:'declareEnd'});break;
+    case 'dsell':case 'dtrade':case 'dall':case 'dmax':case 'dkeep':case 'dok':{
+      if(s.phase!=='dispose'||!me)return;
+      var p=s.pend,held=me.stocks[p.cur],bank=E.bankLeft(s,p.survivor),d=G.ui.disp||(G.ui.disp={sell:0,trade:0});
+      if(k==='dsell'){var ds=+arg;if(ds>0&&d.sell+d.trade<held)d.sell++;if(ds<0&&d.sell>0)d.sell--}
+      else if(k==='dtrade'){var dt=+arg;if(dt>0&&d.sell+d.trade+2<=held&&(d.trade+2)/2<=bank)d.trade+=2;if(dt<0&&d.trade>=2)d.trade-=2}
+      else if(k==='dall'){d.sell=held;d.trade=0}
+      else if(k==='dmax'){d.trade=Math.min(Math.floor(held/2)*2,bank*2);d.sell=0}
+      else if(k==='dkeep'){d.sell=0;d.trade=0}
+      else if(k==='dok'){var dd={type:'dispose',sell:d.sell,trade:d.trade};G.ui.disp=null;humanAct(dd);return}
+      renderActions();return;
+    }
+    case 'bplus':case 'bminus':case 'bok':case 'bend':{
+      if(s.phase!=='buy'||!me)return;
+      var b=G.ui.buy||(G.ui.buy={}),sz=E.sizes(s.board);
+      var tot=0,cost=0,c;
+      for(c=1;c<=7;c++){tot+=b[c]||0;cost+=(b[c]||0)*E.price(c,sz[c])}
+      if(k==='bplus'){c=+arg;if(sz[c]>=2&&tot<3&&(b[c]||0)<E.bankLeft(s,c)&&cost+E.price(c,sz[c])<=me.cash)b[c]=(b[c]||0)+1}
+      else if(k==='bminus'){c=+arg;if((b[c]||0)>0)b[c]--}
+      else{var buys={};for(c=1;c<=7;c++)if(b[c])buys[c]=b[c];G.ui.buy=null;humanAct({type:'buy',buys:buys,end:k==='bend'});return}
+      renderActions();return;
+    }
+    case 'rematch':rematch();break;
+    case 'home':leaveToHome();break;
+    case 'tobot':{if(G.isHost&&G.mode==='multi'){var r=E.apply(s,{type:'toBot',index:+arg},-1);if(r.ok)commit(r.state)}break}
+  }
+}
+
+/* ---------- rendering ---------- */
+function phaseText(s){
+  var a=E.actorOf(s),nm=a>=0?esc(s.players[a].name):'';
+  switch(s.phase){
+    case 'place':return nm+' to play a tile';
+    case 'found':return nm+' is founding a company';
+    case 'mergePick':return nm+' is choosing the surviving company';
+    case 'mergeOrder':return nm+' is choosing which company to settle first';
+    case 'dispose':return nm+' is settling '+esc(CH[s.pend.cur].name)+' shares';
+    case 'buy':return nm+' may buy up to 3 shares';
+    case 'over':return 'Game over';
+  }
+  return '';
+}
+function renderStatus(){
+  var s=G.state,a=E.actorOf(s);
+  var isMe=(a===G.meIdx&&a>=0);
+  $('#stAv').innerHTML=a>=0?initial(s.players[a].name):'&#10003;';
+  var t1=phaseText(s);
+  if(isMe&&s.phase!=='over'&&G.mode!=='local')t1='Your turn: '+({place:'play a tile',found:'found a company',mergePick:'choose the survivor',mergeOrder:'choose what to settle first',dispose:'settle your '+CH[s.phase==='dispose'?s.pend.cur:1].name+' shares',buy:'buy shares'}[s.phase]||'');
+  $('#stT1').innerHTML=t1;
+  var bot=a>=0&&s.players[a].bot;
+  $('#stT2').innerHTML=(s.phase==='over'?esc(s.over.reason):(bot&&!isMe?'<span class="think"></span>AI is thinking':'Tiles left in the bag: '+s.bag.length));
+  var lines=s.log.slice(-3);
+  $('#ticker').innerHTML=lines.map(function(l){return '<div>'+esc(l)+'</div>'}).join('');
+}
+function renderBoard(){
+  var s=G.state,hand=G.meIdx>=0?s.players[G.meIdx].hand:[],hs={},i;
+  for(i=0;i<hand.length;i++)hs[hand[i]]=true;
+  for(var t=0;t<108;t++){
+    var v=s.board[t],el=G.cells[t],cls='cell',inner;
+    if(v===null){cls+=' e'+(hs[t]?' mine':'')+(G.sel===t?' sel':'');inner='<i>'+E.tileLabel(t)+'</i>'}
+    else if(v===0){cls+=' u';inner='<b></b>'}
+    else{cls+=' c'+v;inner='<b>'+CH[v].abbr+'</b>'}
+    if(s.last===t&&v!==null)cls+=' last';
+    if(el.className!==cls)el.className=cls;
+    if(el._h!==inner){el.innerHTML=inner;el._h=inner}
+    var lab=E.tileLabel(t)+(v===null?'':v===0?', unaligned tile':', '+CH[v].name);
+    if(el._l!==lab){el.setAttribute('aria-label',lab);el._l=lab}
+  }
+}
+function effectText(s,t){
+  var an=E.analyze(s.board,t),sz=E.sizes(s.board);
+  if(an.kind==='alone')return 'It just sits on the board. Nothing else happens.';
+  if(an.kind==='found')return 'Founds a new company. You pick which one next and get a free share.';
+  if(an.kind==='grow'){var extra=E.floodCount(s.board,t);return 'Grows '+esc(CH[an.chain].name)+' from '+sz[an.chain]+' to '+(sz[an.chain]+1+extra)+' tiles.'}
+  if(an.kind==='merge'){
+    var max=Math.max.apply(null,an.chains.map(function(c){return sz[c]}));
+    var tied=an.chains.filter(function(c){return sz[c]===max}).length>1;
+    return 'Merger of '+an.chains.map(function(c){return esc(CH[c].name)+' ('+sz[c]+')'}).join(' and ')+'. '+(tied?'They are tied, so you choose the survivor.':'The biggest one survives.');
+  }
+  return '';
+}
+function renderHand(){
+  var s=G.state,panel=$('#handPanel');
+  if(G.meIdx<0){panel.hidden=true;return}
+  if(s.phase==='over'){panel.hidden=true;return}
+  panel.hidden=false;
+  var me=s.players[G.meIdx],myTurn=(E.actorOf(s)===G.meIdx&&s.phase==='place');
+  var tiles=me.hand.slice().sort(function(a,b){return tkey(a)-tkey(b)});
+  if(!tiles.length){$('#hand').innerHTML='<span class="muted">No tiles left.</span>';return}
+  $('#hand').innerHTML=tiles.map(function(t){
+    var an=E.analyze(s.board,t),ok=(an.kind!=='dead'&&an.kind!=='blocked'),hint;
+    if(an.kind==='alone')hint='alone';else if(an.kind==='found')hint='new company';
+    else if(an.kind==='grow')hint=chainSw(an.chain)+esc(CH[an.chain].name);
+    else if(an.kind==='merge')hint='merger';else if(an.kind==='dead')hint='dead, will swap';else hint='held back';
+    var cls='tile'+(G.sel===t?' sel':'')+(ok?'':' off');
+    return '<button class="'+cls+'" data-t="'+t+'"'+((myTurn&&ok)?'':' disabled')+' aria-pressed="'+(G.sel===t)+'"><span class="tl">'+E.tileLabel(t)+'</span><span class="th">'+hint+'</span></button>';
+  }).join('');
+}
+function renderActions(){
+  var s=G.state,el=$('#actions'),a=E.actorOf(s),me=G.meIdx>=0?s.players[G.meIdx]:null,mine=(a===G.meIdx&&a>=0),h='';
+  if(s.phase==='over'){el.innerHTML=overHtml(s);return}
+  if(G.meIdx<0&&G.mode!=='local'){el.innerHTML='<h3>Watching</h3><p class="muted">You joined after this game started, so you can follow along but not play.</p>';return}
+  if(!mine){
+    var who=s.players[a],bot=who.bot;
+    h='<h3>'+(bot?'<span class="think"></span>':'')+esc(who.name)+(bot?' (AI)':'')+'</h3><p class="muted">'+phaseText(s)+'.</p>';
+    if(s.phase==='dispose'||s.phase==='mergePick'||s.phase==='mergeOrder')h+=mergeInfo(s);
+    if(G.mode==='multi'&&G.isHost&&!bot)h+='<p class="muted" style="font-size:13px">Player gone quiet?</p><button class="btn alt small" data-a="tobot:'+a+'">Let the AI play for '+esc(who.name)+'</button>';
+    el.innerHTML=h;return;
+  }
+  var sz=E.sizes(s.board),c,i;
+  if(s.phase==='place'){
+    h='<h3>Play a tile</h3>';
+    if(G.sel==null)h+='<p class="muted">Tap a tile below, or one of your tiles on the board.</p>';
+    else h+='<p><b class="mono">'+E.tileLabel(G.sel)+'</b> '+effectText(s,G.sel)+'</p><div class="row"><button class="btn" data-a="place">Place '+E.tileLabel(G.sel)+'</button></div>';
+    if(E.endCondition(s)){
+      var pr=E.projected(s),mt=pr[G.meIdx].total,rank=1+pr.filter(function(x,k){return k!==G.meIdx&&x.total>mt}).length;
+      h+='<p class="note" style="margin-top:10px">The game can be ended now. If it ended this moment you would finish ranked <b>'+rank+'</b> of '+pr.length+' with <b>'+money(mt)+'</b>.</p><button class="btn alt small" data-a="end" style="margin-top:8px">End the game now</button>';
+    }
+  }else if(s.phase==='found'){
+    h='<h3>Found a company</h3><p>Pick a company to start with <b class="mono">'+E.tileLabel(s.pend.tile)+'</b>. You get a free share.</p><div class="chainbtns">';
+    for(c=1;c<=7;c++)if(sz[c]===0)h+='<button class="btn chain" data-a="found:'+c+'" style="background:var(--c'+c+');color:var(--c'+c+'i)"><span>'+esc(CH[c].name)+'<br><small class="mono">'+money(E.price(c,2))+' / share</small></span></button>';
+    h+='</div>';
+  }else if(s.phase==='mergePick'||s.phase==='mergeOrder'){
+    h='<h3>'+(s.phase==='mergePick'?'Choose the survivor':'Which company first?')+'</h3>'+mergeInfo(s)+'<p>'+(s.phase==='mergePick'?'These companies are the same size. Which one survives?':'These absorbed companies are the same size. Settle which one first?')+'</p><div class="chainbtns">';
+    s.pend.options.forEach(function(c){h+='<button class="btn chain" data-a="'+(s.phase==='mergePick'?'surv':'ord')+':'+c+'" style="background:var(--c'+c+');color:var(--c'+c+'i)">'+esc(CH[c].name)+'</button>'});
+    h+='</div>';
+  }else if(s.phase==='dispose'){
+    var p=s.pend,held=me.stocks[p.cur],bank=E.bankLeft(s,p.survivor),d=G.ui.disp||(G.ui.disp={sell:0,trade:0});
+    var keep=held-d.sell-d.trade;
+    h='<h3>Settle '+esc(CH[p.cur].name)+' shares</h3>'+mergeInfo(s)+
+      '<p>You hold <b>'+held+'</b>. Selling pays <b class="mono">'+money(p.price)+'</b> each. Trading gives 1 '+esc(CH[p.survivor].name)+' share for every 2 you hand in ('+bank+' left in the bank).</p>'+
+      '<div class="line"><div class="l"><span class="tx">Sell</span></div><div class="stepper"><button data-a="dsell:-1" aria-label="Sell fewer"'+(d.sell<1?' disabled':'')+'>&minus;</button><span class="n">'+d.sell+'</span><button data-a="dsell:1" aria-label="Sell more"'+(keep<1?' disabled':'')+'>+</button></div></div>'+
+      '<div class="line"><div class="l"><span class="tx">Trade 2 for 1</span></div><div class="stepper"><button data-a="dtrade:-1" aria-label="Trade fewer"'+(d.trade<2?' disabled':'')+'>&minus;</button><span class="n">'+d.trade+'</span><button data-a="dtrade:1" aria-label="Trade more"'+((keep<2||(d.trade+2)/2>bank)?' disabled':'')+'>+</button></div></div>'+
+      '<div class="line"><div class="l"><span class="tx">Keep</span></div><span class="mono"><b>'+keep+'</b></span></div>'+
+      '<div class="sum">You receive '+money(d.sell*p.price)+(d.trade?' and '+(d.trade/2)+' '+esc(CH[p.survivor].name)+' share'+(d.trade>2?'s':''):'')+'.</div>'+
+      '<div class="row" style="margin-top:10px"><button class="btn alt small" data-a="dall">Sell all</button><button class="btn alt small" data-a="dmax">Trade max</button><button class="btn alt small" data-a="dkeep">Keep all</button></div>'+
+      '<div class="row" style="margin-top:10px"><button class="btn" data-a="dok">Confirm</button></div>';
+  }else if(s.phase==='buy'){
+    var b=G.ui.buy||(G.ui.buy={}),tot=0,cost=0;
+    for(c=1;c<=7;c++){tot+=b[c]||0;cost+=(b[c]||0)*E.price(c,sz[c])}
+    var act=E.activeIds(s.board);
+    h='<h3>Buy shares</h3>';
+    if(!act.length)h+='<p class="muted">No companies on the board yet, so there is nothing to buy.</p>';
+    else{
+      h+='<p class="muted" style="margin-bottom:4px">Up to 3 shares in total. You have <b class="mono">'+money(me.cash)+'</b>.</p>';
+      act.forEach(function(c){
+        var pr=E.price(c,sz[c]),bank=E.bankLeft(s,c),n=b[c]||0;
+        h+='<div class="line"><div class="l">'+chainSw(c)+'<span class="tx">'+esc(CH[c].name)+'</span></div><span class="mono muted" style="font-size:12px">'+money(pr)+' &middot; '+bank+' left</span>'+
+          '<div class="stepper"><button data-a="bminus:'+c+'" aria-label="Buy fewer '+esc(CH[c].name)+'"'+(n<1?' disabled':'')+'>&minus;</button><span class="n">'+n+'</span><button data-a="bplus:'+c+'" aria-label="Buy more '+esc(CH[c].name)+'"'+((tot>=3||n>=bank||cost+pr>me.cash)?' disabled':'')+'>+</button></div></div>';
+      });
+      h+='<div class="sum">Cost '+money(cost)+' &middot; cash after '+money(me.cash-cost)+'</div>';
+    }
+    h+='<div class="row" style="margin-top:10px"><button class="btn" data-a="bok">'+(tot?'Buy and end turn':'End turn')+'</button>';
+    if(E.endCondition(s))h+='<button class="btn alt" data-a="bend">'+(tot?'Buy and end game':'End game')+'</button>';
+    h+='</div>';
+  }
+  el.innerHTML=h;
+}
+function mergeInfo(s){
+  var p=s.pend;if(!p||p.kind!=='merge')return '';
+  var h='<p class="note" style="margin:6px 0">Merger: '+p.chains.map(function(c){return chainSw(c)+' '+esc(CH[c].name)+' ('+p.sz[c]+')'}).join(' + ');
+  if(p.survivor)h+='. <b>'+esc(CH[p.survivor].name)+'</b> survives.';
+  if(s.phase==='dispose'){
+    h+='<br>'+(p.paid&&p.paid.length?'Bonuses paid for '+esc(CH[p.cur].name)+': '+p.paid.map(function(b){return '<b class="pl">'+esc(s.players[b.i].name)+'</b> '+money(b.amt)+' ('+esc(b.kind)+')'}).join(', ')+'.':'Nobody held '+esc(CH[p.cur].name)+' shares, so no bonuses were paid.');
+  }
+  return h+'</p>';
+}
+function overHtml(s){
+  var rs=s.over.results.slice().sort(function(a,b){return b.total-a.total});
+  var h='<h3>Final standings</h3><p class="muted" style="margin-top:2px">'+esc(s.over.reason)+' Majority and minority bonuses were paid and all shares sold.</p><div style="overflow-x:auto"><table class="tbl results"><thead><tr><th>Player</th><th>Cash</th><th>Bonuses</th><th>Shares</th><th>Total</th></tr></thead><tbody>';
+  rs.forEach(function(r){h+='<tr class="'+(r.winner?'w':'')+'"><td>'+esc(r.name)+'</td><td>'+money(r.cash)+'</td><td>'+money(r.bonus)+'</td><td>'+money(r.sold)+'</td><td>'+money(r.total)+'</td></tr>'});
+  h+='</tbody></table></div><div class="row" style="margin-top:12px">';
+  if(G.mode==='solo'||G.mode==='local')h+='<button class="btn" data-a="rematch">Play again</button>';
+  else if(G.isHost)h+='<button class="btn" data-a="rematch">Rematch with same players</button>';
+  else h+='<span class="muted">The host can start a rematch.</span>';
+  h+='<button class="btn alt" data-a="home">Back to menu</button></div>';
+  return h;
+}
+function cap(n){return n>=1000?'R'+(Math.round(n/100)/10)+'k':'R'+n}
+function renderMarket(){
+  var s=G.state,sz=E.sizes(s.board),tot=0,h='<thead><tr><th>Company</th><th>Tiles</th><th>Price</th><th>Mkt cap</th><th>Bank</th></tr></thead><tbody>';
+  for(var c=1;c<=7;c++){
+    var on=sz[c]>0,pr=on?E.price(c,sz[c]):0;
+    if(on)tot+=pr*E.SHARES;
+    h+='<tr class="'+(on?'':'off')+'"><td><span class="cn">'+chainSw(c)+esc(CH[c].name)+(sz[c]>=11?' <span class="badge">safe</span>':'')+'</span></td><td>'+(on?sz[c]:'&ndash;')+'</td><td>'+(on?money(pr):'&ndash;')+'</td><td>'+(on?cap(pr*E.SHARES):'&ndash;')+'</td><td>'+E.bankLeft(s,c)+'</td></tr>';
+  }
+  h+='<tr><td colspan="3" style="font-family:var(--body);font-weight:600">All companies</td><td style="font-weight:600">'+(tot?cap(tot):'&ndash;')+'</td><td></td></tr>';
+  $('#market').innerHTML=h+'</tbody>';
+}
+function renderPlayers(){
+  var s=G.state,a=E.actorOf(s),pr=s.phase==='over'?s.over.results:E.projected(s),h='';
+  s.players.forEach(function(p,i){
+    var chips='';
+    for(var c=1;c<=7;c++)if(p.stocks[c]>0)chips+=chip(c,p.stocks[c]);
+    if(!chips)chips='<span class="muted" style="font-size:12px">no shares</span>';
+    var tags=(p.bot?' <span class="badge">AI</span>':'')+(i===G.meIdx?' <span class="badge">you</span>':'');
+    var cash=s.phase==='over'?s.over.results[i].total:p.cash;
+    h+='<div class="prow'+(i===a?' turn':'')+'"><div class="av">'+initial(p.name)+'</div><div class="pn">'+esc(p.name)+tags+'</div><div class="pc">'+money(cash)+'</div><div class="chips">'+chips+'</div><div class="pw">'+(s.phase==='over'?'final':'if ended now '+money(pr[i].total))+'</div></div>';
+  });
+  $('#players').innerHTML=h;
+}
+function ord(n){return n+(n===1?'st':n===2?'nd':n===3?'rd':'th')}
+function niceStep(x){var c=[1000,2000,2500,5000,10000,20000,25000,50000,100000,200000];for(var i=0;i<c.length;i++)if(c[i]>=x)return c[i];return 500000}
+function plColor(i){return 'var(--pl'+(i%6)+')'}
+function drawChart(s){
+  var host=$('#chart'),W=Math.max(280,Math.floor(host.clientWidth)||600),H=W<520?270:330;
+  var n=s.players.length,len=s.hist.length,M={l:48,r:86,t:14,b:30},pw=W-M.l-M.r,ph=H-M.t-M.b,i,k,mn=1e9,mx=-1e9;
+  for(k=0;k<len;k++)for(i=0;i<n;i++){var v=s.hist[k][i];if(v<mn)mn=v;if(v>mx)mx=v}
+  var step=niceStep((mx-mn)/4||1000),lo=Math.floor(mn/step)*step,hi=Math.ceil(mx/step)*step;if(hi<=lo)hi=lo+step;
+  function X(j){return M.l+pw*(len>1?j/(len-1):0)}
+  function Y(v){return M.t+ph*(1-(v-lo)/(hi-lo))}
+  var g='',v2;
+  for(v2=lo;v2<=hi+1;v2+=step)g+='<line class="gl" x1="'+M.l+'" x2="'+(W-M.r)+'" y1="'+Y(v2).toFixed(1)+'" y2="'+Y(v2).toFixed(1)+'"/><text class="ax" x="'+(M.l-6)+'" y="'+(Y(v2)+4).toFixed(1)+'" text-anchor="end">'+cap(v2)+'</text>';
+  var rounds=(len-1)/n,every=Math.max(1,Math.ceil(rounds/6));
+  for(var r=0;r*n<=len-1;r+=every)g+='<text class="ax" x="'+X(r*n).toFixed(1)+'" y="'+(H-10)+'" text-anchor="middle">'+r+'</text>';
+  g+='<text class="ax" x="'+(W-M.r)+'" y="'+(H-10)+'" text-anchor="start" dx="8">round</text>';
+  var order=[];for(i=0;i<n;i++)if(i!==G.meIdx)order.push(i);if(G.meIdx>=0)order.push(G.meIdx);
+  order.forEach(function(p){
+    var d='';for(k=0;k<len;k++)d+=(k?'L':'M')+X(k).toFixed(1)+' '+Y(s.hist[k][p]).toFixed(1);
+    var me=(p===G.meIdx);
+    g+='<path d="'+d+'" fill="none" stroke-linejoin="round" stroke-linecap="round" style="stroke:'+(me?'var(--ink)':plColor(p))+';stroke-width:'+(me?3.5:2)+'px"/>';
+  });
+  var ends=[];for(i=0;i<n;i++)ends.push({i:i,y:Y(s.hist[len-1][i])});
+  ends.sort(function(a,b){return a.y-b.y});
+  var ly=ends.map(function(e){return e.y});
+  for(k=1;k<ly.length;k++)if(ly[k]<ly[k-1]+13)ly[k]=ly[k-1]+13;
+  var over=ly[ly.length-1]-(H-M.b);if(over>0)for(k=0;k<ly.length;k++)ly[k]-=over;
+  ends.forEach(function(e,j){
+    var me=e.i===G.meIdx,nm=s.players[e.i].name;if(nm.length>9)nm=nm.slice(0,8)+'…';
+    g+='<circle cx="'+X(len-1).toFixed(1)+'" cy="'+e.y.toFixed(1)+'" r="'+(me?5:3.5)+'" style="fill:'+(me?'var(--ink)':plColor(e.i))+'"/>';
+    g+='<text class="nm'+(me?' me':'')+'" x="'+(W-M.r+10)+'" y="'+(ly[j]+4).toFixed(1)+'">'+esc(nm)+'</text>';
+  });
+  var lab='Net worth of each player by round. Final: '+s.players.map(function(p,i){return p.name+' '+money(s.hist[len-1][i])}).join(', ')+'.';
+  host.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(lab)+'">'+g+'</svg>';
+  $('#chartLegend').innerHTML=s.players.map(function(p,i){var me=i===G.meIdx;return '<span><i style="background:'+(me?'var(--ink)':plColor(i))+(me?';height:6px':'')+'"></i>'+(me?'<b>':'')+esc(p.name)+(me?' (you)</b>':'')+' <span class="mono muted">'+money(s.hist[len-1][i])+'</span></span>'}).join('');
+}
+function statCard(label,i,line){
+  var s=G.state,me=(i===G.meIdx),nm=Array.isArray(i)?i.map(function(x){return esc(s.players[x].name)}).join(' & '):esc(s.players[i].name);
+  if(Array.isArray(i))me=i.indexOf(G.meIdx)>=0;
+  return '<div class="stat'+(me?' me':'')+'"><div class="sl">'+esc(label)+'</div><div class="sn">'+nm+(me?' <span class="badge">you</span>':'')+'</div><div class="sd">'+line+'</div></div>';
+}
+function drawStats(s){
+  var st=E.computeStats(s),h='',pct;
+  var ch=st.champion;
+  h+=statCard('Champion',ch.winners.length>1?ch.winners:ch.winners[0],ch.winners.length>1?'Shared the win on '+money(ch.total)+' each.':'Finished on '+money(ch.total)+', '+money(ch.margin)+' clear of second place.');
+  if(st.comeback){var cb=st.comeback;h+=statCard('Greatest comeback',cb.i,'Sat '+ord(cb.from)+' in round '+cb.round+', '+money(cb.deficit)+' behind the leader, and finished '+ord(cb.to)+'.')}
+  else h+='<div class="stat"><div class="sl">Greatest comeback</div><div class="sn">Nobody</div><div class="sd">The standings held firm. Nobody climbed back from behind.</div></div>';
+  if(st.roi){pct=Math.round(st.roi.roi*100);h+=statCard('Best return on investment',st.roi.i,'Turned '+money(st.roi.invested)+' of share purchases into '+money(st.roi.back)+' ('+(pct>=0?'+':'')+String(pct).replace(/\B(?=(\d{3})+(?!\d))/g,'\u00a0')+'%).')}
+  if(st.perShare)h+=statCard('Smartest with the money',st.perShare.i,'Made '+money(Math.round(st.perShare.v))+' for every share bought ('+money(st.perShare.gain)+' gained over '+st.perShare.bought+' shares).');
+  if(st.payout)h+=statCard('Biggest single payout',st.payout.i,money(st.payout.amt)+' for '+esc(st.payout.kind)+' in '+esc(CH[st.payout.chain].name)+(st.payout.final?' at the final count.':' in a merger.'));
+  if(st.bonusKing)h+=statCard('Bonus king',st.bonusKing.i,money(st.bonusKing.amt)+' collected in merger and final bonuses.');
+  if(st.spender&&st.spender.spent>0)h+=statCard('Biggest spender',st.spender.i,money(st.spender.spent)+' spent buying shares.');
+  if(st.merger)h+=statCard('Merger maker',st.merger.i,'Triggered '+st.merger.n+' merger'+(st.merger.n>1?'s':'')+'.');
+  if(st.founder)h+=statCard('Company founder',st.founder.i,'Founded '+st.founder.n+' compan'+(st.founder.n>1?'ies':'y')+'.');
+  if(st.fall)h+=statCard('Hardest fall',st.fall.i,'Peaked at '+money(st.fall.peak)+' in round '+st.fall.round+' and finished on '+money(st.fall.final)+'.');
+  $('#stats').innerHTML=h;
+}
+function renderEnd(){
+  var s=G.state,p=$('#endPanel');
+  if(!s||s.phase!=='over'||!s.hist||s.hist.length<2){p.hidden=true;return}
+  p.hidden=false;drawChart(s);drawStats(s);
+}
+function renderLog(){
+  $('#log').innerHTML=G.state.log.slice().reverse().map(function(l){return '<li>'+esc(l)+'</li>'}).join('');
+}
+
+/* ---------- boot ---------- */
+async function initCaps(){
+  try{
+    if(window.claude&&window.claude.use){
+      var user=await window.claude.use('user');
+      if(user){
+        var me=await user.me();
+        if(me&&me.id)G.uid=me.id;
+        if(me&&me.name&&!store.get('asa-name')&&!$('#nameInput').value)$('#nameInput').value=String(me.name).split(' ')[0].slice(0,14);
+      }
+    }
+  }catch(e){}
+  try{if(window.claude&&window.claude.use)G.db=await window.claude.use('db')}catch(e){}
+  if(!G.uid){G.uid=store.get('asa-uid')||('g'+Math.random().toString(36).slice(2,10));store.set('asa-uid',G.uid)}
+  updateHomeStatus();checkHash();
+}
+buildHome();
+updateHomeStatus();
+initCaps();
+window.addEventListener('hashchange',checkHash);
+var rzT;window.addEventListener('resize',function(){clearTimeout(rzT);rzT=setTimeout(function(){if(G.state&&G.state.phase==='over'&&!$('#endPanel').hidden)drawChart(G.state)},150)});
+})();
+</script>
