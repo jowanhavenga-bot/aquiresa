@@ -3,7 +3,10 @@ from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
 from urllib.parse import urlparse,parse_qs
 LOCK=threading.Lock()
 RET={}; SUBS={}; QS={}; PAGE=b''; LOG=[]
-def match(t,topics): return t in topics
+def tm(f,t):
+    if f==t: return True
+    if f.endswith('/+'): return t.startswith(f[:-1]) and '/' not in t[len(f)-1:]
+    return False
 class H(BaseHTTPRequestHandler):
     def log_message(self,*a): pass
     def _send(self,code,body,ct='application/json'):
@@ -26,7 +29,8 @@ class H(BaseHTTPRequestHandler):
                 cid=d['cid']; qu=QS.setdefault(cid,queue.Queue()); s=SUBS.setdefault(cid,set())
                 for t in d['topics']:
                     s.add(t)
-                    if t in RET: qu.put({'t':t,'p':RET[t]})
+                    for rt,rp in list(RET.items()):
+                        if tm(t,rt): qu.put({'t':rt,'p':rp})
             elif u.path=='/unsub':
                 for t in d['topics']: SUBS.get(d['cid'],set()).discard(t)
             elif u.path=='/pub':
@@ -35,8 +39,7 @@ class H(BaseHTTPRequestHandler):
                     if p=='' : RET.pop(t,None)
                     else: RET[t]=p
                 for cid,s in SUBS.items():
-                    if t in s and p!='' : QS.setdefault(cid,queue.Queue()).put({'t':t,'p':p})
-                    elif t in s and p=='' : QS.setdefault(cid,queue.Queue()).put({'t':t,'p':''})
+                    if any(tm(f,t) for f in s) and p!='': QS.setdefault(cid,queue.Queue()).put({'t':t,'p':p})
             elif u.path=='/drop': SUBS.pop(d['cid'],None)
         self._send(200,b'{}')
 def start(page,port=8766):

@@ -315,9 +315,9 @@ details.rules li{margin:5px 0;max-width:70ch}
     <section id="records" class="rec" hidden>
       <div class="panel">
         <div class="row" style="justify-content:space-between"><h2 style="margin:0">Records</h2><button class="btn alt small" id="recBack">Back</button></div>
-        <p class="fine" style="margin:6px 0 0">Kept on this device, by player name. Only people, not AI players, are listed. In online games every friend's device keeps its own copy of the same games.</p>
+        <p class="fine" style="margin:6px 0 0">One shared board for everyone, by player name. A name only updates when a new result beats the old one, and records can't be cleared. AI players and the default name "Player" are not listed.</p>
+        <p class="note" id="recStatus" style="margin:8px 0 0"></p>
         <div id="recBody"></div>
-        <div class="row" style="margin-top:16px"><button class="btn alt small" id="recClear">Clear records</button></div>
       </div>
     </section>
 
@@ -425,7 +425,7 @@ function showScreen(name){
   ['home','lobby','game','records'].forEach(function(n){$('#'+n).hidden=(n!==name)});
   $('#menuBtn').hidden=(name==='home'||name==='records');
   if(name==='home'||name==='records'){$('#menu').hidden=true}
-  if(name==='records')renderRecords();
+  if(name==='records'){renderRecords();recSync(true)}else if(RC.holding)recStop();
   var ti='';
   if(name==='lobby')ti='Lobby '+esc(G.code||'');
   if(name==='game'&&G.mode==='multi')ti='Room '+esc(G.code||'');
@@ -448,7 +448,6 @@ function buildHome(){
   ['lvl','pers'].forEach(function(k){Array.prototype.forEach.call(document.querySelectorAll('#'+k+'Seg button'),function(b){b.addEventListener('click',function(){G.ai[k]=b.dataset.v;store.set('asa-ai',JSON.stringify(G.ai));setModeUi()})})});
   $('#recordsBtn').addEventListener('click',function(){showScreen('records')});
   $('#recBack').addEventListener('click',function(){showScreen('home')});
-  $('#recClear').addEventListener('click',function(){var b=$('#recClear');if(b.dataset.sure){store.del(REC_KEY);b.dataset.sure='';b.textContent='Clear records';renderRecords()}else{b.dataset.sure='1';b.textContent='Tap again to clear everything';setTimeout(function(){b.dataset.sure='';b.textContent='Clear records'},4000)}});
   document.addEventListener('pointerdown',function unlock(){audio();document.removeEventListener('pointerdown',unlock)});
   setModeUi();
   ['Shares','Worth','Founders','Offers'].forEach(function(k){$('#hide'+k).addEventListener('click',function(){G.hide[k.toLowerCase()]=!G.hide[k.toLowerCase()];store.set('asa-hide',JSON.stringify(G.hide));setModeUi()})});
@@ -631,48 +630,141 @@ function resumeSolo(){
 }
 
 
-/* ---------- records ---------- */
-var REC_KEY='asa-records';
-function recLoad(){try{var o=JSON.parse(store.get(REC_KEY)||'null');if(o&&o.v===1&&Array.isArray(o.games)&&Array.isArray(o.gids))return o}catch(e){}return {v:1,games:[],gids:[]}}
+/* ---------- records (shared by everyone on the web version) ---------- */
+var REC_KEY='asa-rec2',REC_T='acquire-sa/v1/records/',RC={clients:[],seen:{},busy:false,timer:null,pub:null};
+function recKey(n){return String(n).trim().toLowerCase().slice(0,14)}
+function recTopic(n){var k=recKey(n),h='';for(var i=0;i<k.length;i++)h+=k.charCodeAt(i).toString(16);return REC_T+h}
+function recNum(x,max){return (typeof x==='number'&&isFinite(x)&&x>=0&&x<=max)?Math.round(x):null}
+function recIds(a){return Array.isArray(a)?a.filter(function(x){return typeof x==='string'&&x.length>0&&x.length<=24}).slice(-300):[]}
+function recClean(e){
+  if(!e||typeof e!=='object'||typeof e.n!=='string')return null;
+  var n=e.n.trim().slice(0,14);if(!n)return null;
+  var out={n:n,t:null,m:null,p:null,cb:null,ws:recIds(e.ws),gs:recIds(e.gs)};
+  if(e.t&&recNum(e.t.v,1e7)!=null)out.t={v:recNum(e.t.v,1e7),np:recNum(e.t.np,6)||2,r:recNum(e.t.r,6)||1,w:e.t.w?1:0,d:recNum(e.t.d,4e12)||0};
+  if(e.m&&recNum(e.m.v,1e7)!=null)out.m={v:recNum(e.m.v,1e7),t:recNum(e.m.t,1e7)||0,d:recNum(e.m.d,4e12)||0};
+  if(e.p&&recNum(e.p.v,1e7)!=null)out.p={v:recNum(e.p.v,1e7),c:recNum(e.p.c,7)||0,d:recNum(e.p.d,4e12)||0};
+  if(e.cb&&recNum(e.cb.g,6)!=null&&recNum(e.cb.g,6)>0)out.cb={g:recNum(e.cb.g,6),df:recNum(e.cb.df,1e7)||0,f:recNum(e.cb.f,6)||1,to:recNum(e.cb.to,6)||1,rd:recNum(e.cb.rd,200)||1,d:recNum(e.cb.d,4e12)||0};
+  return out;
+}
+function recSig(e){return JSON.stringify([e.t&&e.t.v,e.m&&e.m.v,e.p&&e.p.v,e.cb&&[e.cb.g,e.cb.df],e.ws.length,e.gs.length,e.gs.slice(-3)])}
+function recCbScore(c){return c.g*1e7+Math.min(c.df,9999999)}
+function recMergeEntry(a,b){
+  var ch=false;
+  function better(x,y,sc){return y&&(!x||sc(y)>sc(x))}
+  if(better(a.t,b.t,function(z){return z.v})){a.t=b.t;ch=true}
+  if(better(a.m,b.m,function(z){return z.v})){a.m=b.m;ch=true}
+  if(better(a.p,b.p,function(z){return z.v})){a.p=b.p;ch=true}
+  if(better(a.cb,b.cb,recCbScore)){a.cb=b.cb;ch=true}
+  ['ws','gs'].forEach(function(k){
+    var have={};a[k].forEach(function(x){have[x]=1});
+    var add=b[k].filter(function(x){return !have[x]});
+    if(add.length){a[k]=a[k].concat(add).slice(-300);ch=true}
+  });
+  return ch;
+}
+function recLoad(){
+  try{var o=JSON.parse(store.get(REC_KEY)||'null');if(o&&o.v===2&&o.p&&typeof o.p==='object')return o}catch(e){}
+  var n={v:2,p:{}};
+  try{
+    var old=JSON.parse(store.get('asa-records')||'null');
+    if(old&&Array.isArray(old.games))old.games.forEach(function(g,i){
+      var e=recClean({n:g.n,t:{v:g.t,np:g.np,r:g.r,w:g.w,d:g.d},m:g.w&&g.m>0?{v:g.m,t:g.t,d:g.d}:null,p:g.p>0?{v:g.p,c:g.pc,d:g.d}:null,cb:g.cb?{g:g.cb.gain,df:g.cb.deficit,f:g.cb.from,to:g.cb.to,rd:g.cb.round,d:g.d}:null,ws:g.w?['o'+i]:[],gs:['o'+i]});
+      if(e)recAdd(n,e);
+    });
+  }catch(e){}
+  return n;
+}
+function recAdd(o,e){var k=recKey(e.n);if(!o.p[k]){o.p[k]=e;return true}return recMergeEntry(o.p[k],e)}
+function recSave(o){store.set(REC_KEY,JSON.stringify(o))}
 function recordGame(s){
   if(!s||s.phase!=='over'||!s.hist||s.hist.length<2||!s.gid)return;
-  var o=recLoad();if(o.gids.indexOf(s.gid)>=0)return;
-  var pp;try{pp=E.perPlayer(s)}catch(e){return}
-  var humans=pp.filter(function(p){return !p.bot});
-  humans.forEach(function(p){o.games.push({n:p.name,t:p.total,r:p.rank,w:p.winner?1:0,np:s.players.length,m:p.margin,p:p.payout,pc:p.payoutChain,cb:p.comeback,d:Date.now(),md:G.mode,tc:s.tycoon!==false?1:0})});
-  o.gids.push(s.gid);
-  if(o.games.length>800)o.games=o.games.slice(-800);
-  if(o.gids.length>400)o.gids=o.gids.slice(-400);
-  store.set(REC_KEY,JSON.stringify(o));
-}
-function recBestBy(games,score,filter){
-  var by={};
-  games.forEach(function(g){
-    if(filter&&!filter(g))return;
-    var k=g.n.toLowerCase(),v=score(g);
-    if(v==null)return;
-    if(!by[k]||v>by[k].v)by[k]={v:v,g:g};
+  var o=recLoad(),pp,changed=false,now=Date.now();
+  try{pp=E.perPlayer(s)}catch(e){return}
+  pp.forEach(function(p){
+    if(p.bot||p.name==='Player')return;
+    var k=recKey(p.name),cur=o.p[k];
+    if(cur&&cur.gs.indexOf(s.gid)>=0)return;
+    var c=p.comeback;
+    var e=recClean({n:p.name,t:{v:p.total,np:s.players.length,r:p.rank,w:p.winner?1:0,d:now},m:p.winner&&p.margin>0?{v:p.margin,t:p.total,d:now}:null,p:p.payout>0?{v:p.payout,c:p.payoutChain,d:now}:null,cb:c?{g:c.gain,df:c.deficit,f:c.from,to:c.to,rd:c.round,d:now}:null,ws:p.winner?[s.gid]:[],gs:[s.gid]});
+    if(e){recAdd(o,e);changed=true}
   });
-  return Object.keys(by).map(function(k){return by[k]}).sort(function(a,b){return b.v-a.v});
+  if(changed){recSave(o);recSync(false)}
+}
+function recStatus(kind,extra){
+  var el=$('#recStatus');if(!el)return;
+  var m={local:'Shared records are only available on the web version. Showing what this device has seen.',connecting:'Connecting to the shared records…',live:'Live: shared with everyone who plays the web version.',offline:'Could not reach the shared records. Showing what this device has seen.'};
+  el.textContent=(m[kind]||'')+(extra||'');
+}
+function recConnect(letter){
+  return new Promise(function(res,rej){
+    var done=false,c;
+    try{c=window.mqtt.connect(BROKERS[letter],{clientId:'asar_'+randChars(10),clean:true,keepalive:30,connectTimeout:6000,reconnectPeriod:0})}catch(e){rej(e);return}
+    var t=setTimeout(function(){if(!done){done=true;try{c.end(true)}catch(e){}rej(new Error('timeout'))}},7000);
+    c.on('error',function(){});
+    c.once('connect',function(){if(done)return;done=true;clearTimeout(t);res(c)});
+  });
+}
+function recIncoming(L,topic,payload){
+  var e=null;
+  try{e=recClean(JSON.parse(payload.toString()))}catch(x){return}
+  if(!e)return;
+  RC.seen[L+topic]=recSig(e);
+  var o=recLoad();
+  if(recAdd(o,e)){recSave(o);if(G.screen==='records'){clearTimeout(RC.rt);RC.rt=setTimeout(renderRecords,300)}clearTimeout(RC.pt);RC.pt=setTimeout(recPublishDiff,900)}
+}
+function recPublishDiff(){
+  var o=recLoad();
+  RC.clients.forEach(function(cl){
+    Object.keys(o.p).forEach(function(k){
+      var e=o.p[k],t=recTopic(e.n),sig=recSig(e);
+      if(RC.seen[cl.L+t]===sig)return;
+      RC.seen[cl.L+t]=sig;
+      try{cl.c.publish(t,JSON.stringify(e),{qos:1,retain:true})}catch(x){}
+    });
+  });
+}
+async function recSync(keepOpen){
+  if(!window.mqtt||!window.mqtt.connect){if(keepOpen)recStatus('local');return}
+  if(RC.busy){if(keepOpen)RC.keep=true;return}
+  RC.busy=true;RC.keep=!!keepOpen;RC.clients=[];RC.seen={};
+  if(keepOpen)recStatus('connecting');
+  await Promise.all(['E','H'].map(function(L){
+    return recConnect(L).then(function(c){
+      RC.clients.push({L:L,c:c});
+      c.on('message',function(t,p){recIncoming(L,t,p)});
+      return new Promise(function(r){c.subscribe(REC_T+'+',{qos:1},function(){r()})});
+    },function(){});
+  }));
+  if(!RC.clients.length){RC.busy=false;if(G.screen==='records')recStatus('offline');return}
+  if(G.screen==='records')recStatus('live');
+  await delay(2200);
+  recPublishDiff();
+  await delay(700);
+  if(RC.keep&&G.screen==='records'){RC.busy=false;RC.holding=true;return}
+  recStop();
+}
+function recStop(){
+  RC.clients.forEach(function(cl){try{cl.c.end(true)}catch(e){}});
+  RC.clients=[];RC.busy=false;RC.holding=false;RC.keep=false;clearTimeout(RC.pt);clearTimeout(RC.rt);
 }
 function recList(items,limit,fmt){
   if(!items.length)return '<p class="muted">Nothing here yet.</p>';
   var h='<ol>';
-  items.slice(0,limit).forEach(function(it,i){var f=fmt(it);h+='<li><span class="rk">'+(i+1)+'.</span><span class="nm">'+esc(it.g.n)+'<span class="sub">'+f.sub+'</span></span><span class="vl">'+f.val+'</span></li>'});
+  items.slice(0,limit).forEach(function(it,i){var f=fmt(it);h+='<li><span class="rk">'+(i+1)+'.</span><span class="nm">'+esc(it.e.n)+'<span class="sub">'+f.sub+'</span></span><span class="vl">'+f.val+'</span></li>'});
   return h+'</ol>';
 }
-function recDate(g){try{return new Date(g.d).toLocaleDateString()}catch(e){return ''}}
+function recDate(d){try{return d?new Date(d).toLocaleDateString():''}catch(e){return ''}}
 function renderRecords(){
-  var o=recLoad(),g=o.games,h='';
-  if(!g.length){$('#recBody').innerHTML='<p class="muted">No finished games yet. Finish a game and the records start here.</p>';return}
-  h+='<h3>Top 20: most money at the end</h3>'+recList(recBestBy(g,function(x){return x.t}),20,function(it){return {val:esc(E.money(it.g.t)),sub:(it.g.w?'Won':ordN(it.g.r))+' in a '+it.g.np+'-player game &middot; '+recDate(it.g)}});
-  h+='<h3>Best wins</h3><p class="fine" style="margin:0 0 4px">Biggest winning margin over second place.</p>'+recList(recBestBy(g,function(x){return x.m>0?x.m:null},function(x){return x.w}),10,function(it){return {val:'+'+esc(E.money(it.g.m)),sub:'Finished with '+esc(E.money(it.g.t))+' &middot; '+recDate(it.g)}});
-  h+='<h3>Biggest payout</h3><p class="fine" style="margin:0 0 4px">Largest single bonus from a merger or the end of the game.</p>'+recList(recBestBy(g,function(x){return x.p>0?x.p:null}),10,function(it){var c=it.g.pc&&CH[it.g.pc]?esc(CH[it.g.pc].name):'';return {val:esc(E.money(it.g.p)),sub:(c?c+' &middot; ':'')+recDate(it.g)}});
-  h+='<h3>Best comeback</h3><p class="fine" style="margin:0 0 4px">Biggest climb from a low ranking to the final ranking.</p>'+recList(recBestBy(g,function(x){return x.cb?x.cb.gain*1000000+Math.min(x.cb.deficit,999999):null}),10,function(it){var c=it.g.cb;return {val:ordN(c.from)+' &rarr; '+ordN(c.to),sub:'From '+esc(E.money(c.deficit))+' behind the leader in round '+c.round+' &middot; '+recDate(it.g)}});
-  var tally={};g.forEach(function(x){var k=x.n.toLowerCase();var t=tally[k]||(tally[k]={n:x.n,gp:0,w:0});t.gp++;t.w+=x.w;t.n=x.n});
-  var rows=Object.keys(tally).map(function(k){return tally[k]}).sort(function(a,b){return b.w-a.w||a.gp-b.gp});
+  var o=recLoad(),es=Object.keys(o.p).map(function(k){return o.p[k]}),h='';
+  var pick=function(f,sc){return es.filter(function(e){return e[f]}).map(function(e){return {e:e,v:sc(e[f])}}).sort(function(a,b){return b.v-a.v})};
+  if(!es.length){$('#recBody').innerHTML='<p class="muted">No finished games yet. Finish a game under your own name and the records start here.</p>';return}
+  h+='<h3>Top 20: most money at the end</h3>'+recList(pick('t',function(z){return z.v}),20,function(it){var z=it.e.t;return {val:esc(E.money(z.v)),sub:(z.w?'Won':ordN(z.r))+' in a '+z.np+'-player game &middot; '+recDate(z.d)}});
+  h+='<h3>Best wins</h3><p class="fine" style="margin:0 0 4px">Biggest winning margin over second place.</p>'+recList(pick('m',function(z){return z.v}),10,function(it){var z=it.e.m;return {val:'+'+esc(E.money(z.v)),sub:'Finished with '+esc(E.money(z.t))+' &middot; '+recDate(z.d)}});
+  h+='<h3>Biggest payout</h3><p class="fine" style="margin:0 0 4px">Largest single bonus from a merger or the end of the game.</p>'+recList(pick('p',function(z){return z.v}),10,function(it){var z=it.e.p,c=z.c&&CH[z.c]?esc(CH[z.c].name)+' &middot; ':'';return {val:esc(E.money(z.v)),sub:c+recDate(z.d)}});
+  h+='<h3>Best comeback</h3><p class="fine" style="margin:0 0 4px">Biggest climb from a low ranking to the final ranking.</p>'+recList(pick('cb',recCbScore),10,function(it){var z=it.e.cb;return {val:ordN(z.f)+' &rarr; '+ordN(z.to),sub:'From '+esc(E.money(z.df))+' behind the leader in round '+z.rd+' &middot; '+recDate(z.d)}});
+  var rows=es.filter(function(e){return e.gs.length}).sort(function(a,b){return b.ws.length-a.ws.length||a.gs.length-b.gs.length});
   h+='<h3>Wins and games</h3><ol>';
-  rows.slice(0,10).forEach(function(r,i){h+='<li><span class="rk">'+(i+1)+'.</span><span class="nm">'+esc(r.n)+'<span class="sub">'+r.gp+' game'+(r.gp>1?'s':'')+' &middot; '+Math.round(100*r.w/r.gp)+'% wins</span></span><span class="vl">'+r.w+' win'+(r.w===1?'':'s')+'</span></li>'});
+  rows.slice(0,10).forEach(function(e,i){h+='<li><span class="rk">'+(i+1)+'.</span><span class="nm">'+esc(e.n)+'<span class="sub">'+e.gs.length+' game'+(e.gs.length>1?'s':'')+' &middot; '+Math.round(100*e.ws.length/e.gs.length)+'% wins</span></span><span class="vl">'+e.ws.length+' win'+(e.ws.length===1?'':'s')+'</span></li>'});
   h+='</ol>';
   $('#recBody').innerHTML=h;
 }
