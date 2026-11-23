@@ -170,6 +170,16 @@ details.rules li{margin:5px 0;max-width:70ch}
 .passcard .btn{width:100%}
 .av.big{width:76px;height:76px;font-size:34px}
 .passname{font-family:var(--display);font-weight:800;font-size:clamp(34px,10vw,52px);line-height:1;letter-spacing:-.02em;overflow-wrap:anywhere}
+.seg.wrap{flex-wrap:wrap}
+.rec h3{margin:16px 0 6px}
+.rec ol{list-style:none;margin:0;padding:0}
+.rec li{display:flex;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--line);min-width:0}
+.rec li .rk{font-family:var(--mono);color:var(--muted);width:2.2em;flex:none}
+.rec li .nm{font-weight:600;flex:1;min-width:0;overflow-wrap:anywhere}
+.rec li .vl{font-family:var(--mono);white-space:nowrap;flex:none}
+.rec li .sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
+.pv ul{margin:6px 0 0;padding-left:18px}
+.pv li{margin:3px 0}
 </style>
 
 <div class="shell">
@@ -222,6 +232,26 @@ details.rules li{margin:5px 0;max-width:70ch}
           <p class="fine" id="rulesNote" style="margin:6px 0 0"></p>
         </div>
         <div>
+          <label>AI opponents</label>
+          <p class="muted" style="margin:0 0 6px">Level</p>
+          <div class="seg" id="lvlSeg" role="group" aria-label="AI level">
+            <button data-v="easy" aria-pressed="false">Easy</button><button data-v="normal" aria-pressed="true">Normal</button><button data-v="hard" aria-pressed="false">Hard</button>
+          </div>
+          <p class="muted" style="margin:10px 0 6px">Style</p>
+          <div class="seg wrap" id="persSeg" role="group" aria-label="AI style">
+            <button data-v="mixed" aria-pressed="true">Mixed</button><button data-v="balanced" aria-pressed="false">Balanced</button><button data-v="cautious" aria-pressed="false">Cautious</button><button data-v="ruthless" aria-pressed="false">Ruthless</button><button data-v="chaotic" aria-pressed="false">Chaotic</button>
+          </div>
+          <p class="fine" id="aiNote" style="margin:6px 0 0"></p>
+        </div>
+        <div>
+          <label>Your preferences</label>
+          <div class="stack" style="gap:6px">
+            <button class="seg-toggle" id="prefSound" aria-pressed="true"></button>
+            <button class="seg-toggle" id="prefPreview" aria-pressed="false"></button>
+          </div>
+          <p class="fine" style="margin:6px 0 0">These are just for you and never change the rules for others.</p>
+        </div>
+        <div>
           <h3>Play solo against the AI</h3>
           <p class="muted" style="margin:4px 0 8px">How many AI opponents?</p>
           <div class="seg" id="botSeg" role="group" aria-label="Number of AI opponents">
@@ -269,12 +299,26 @@ details.rules li{margin:5px 0;max-width:70ch}
         <div class="row"><button class="btn" id="localBtn">Start pass and play</button><button class="btn alt" id="resumeLocalBtn" hidden>Resume pass and play</button></div>
         <p class="fine">Uses the bonus payout setting above.</p>
       </div>
+      <div class="panel wide row" style="justify-content:space-between">
+        <div><h3 style="margin:0">Records</h3><p class="muted" style="margin:2px 0 0">Best wins, payouts, comebacks and the top 20.</p></div>
+        <button class="btn alt" id="recordsBtn">Open records</button>
+      </div>
       <div class="panel wide">
         <h3>The seven companies</h3>
         <div class="legend" id="legend"></div>
       </div>
       <div class="panel wide"><details class="rules"><summary>How to play</summary><div id="rulesHome"></div></details></div>
       <p class="fine wide">An unofficial, non-commercial fan game based on the classic tile-and-stock board game. Company names are used as in-game labels only, with no logos, and are not affiliated with or endorsed by the companies.</p>
+    </section>
+
+    <!-- RECORDS -->
+    <section id="records" class="rec" hidden>
+      <div class="panel">
+        <div class="row" style="justify-content:space-between"><h2 style="margin:0">Records</h2><button class="btn alt small" id="recBack">Back</button></div>
+        <p class="fine" style="margin:6px 0 0">Kept on this device, by player name. Only people, not AI players, are listed. In online games every friend's device keeps its own copy of the same games.</p>
+        <div id="recBody"></div>
+        <div class="row" style="margin-top:16px"><button class="btn alt small" id="recClear">Clear records</button></div>
+      </div>
     </section>
 
     <!-- LOBBY -->
@@ -361,7 +405,7 @@ var RULES='<ul>'
 +'<li><b>Ending.</b> Once any company reaches 41 tiles, or every company on the board is safe, the player whose turn it is may end the game. Final bonuses are paid, every share is sold, and the most cash wins.</li>'
 +'</ul>';
 
-var G={mode:null,tycoon:true,hide:{shares:false,worth:false,founders:false,offers:false},viewer:-1,passFor:-1,localN:2,localAi:0,code:null,isHost:false,state:null,meIdx:-1,meta:null,lobby:[],sel:null,ui:{},botTimer:null,unsubs:[],db:null,uid:null,
+var G={mode:null,prefs:{sound:true,preview:false},ai:{lvl:'normal',pers:'mixed'},sfx:null,tycoon:true,hide:{shares:false,worth:false,founders:false,offers:false},viewer:-1,passFor:-1,localN:2,localAi:0,code:null,isHost:false,state:null,meIdx:-1,meta:null,lobby:[],sel:null,ui:{},botTimer:null,unsubs:[],db:null,uid:null,
   serverState:null,cells:null,soloBots:3,screen:'home',confirmLeave:false,connTimer:null,stateRef:null,metaRef:null,lobbyRef:null,toastTimer:null};
 
 var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},del:function(k){try{localStorage.removeItem(k)}catch(e){}}};
@@ -378,9 +422,10 @@ function chip(c,n){return '<span class="chip" style="background:var(--c'+c+');co
 /* ---------- screens ---------- */
 function showScreen(name){
   G.screen=name;
-  ['home','lobby','game'].forEach(function(n){$('#'+n).hidden=(n!==name)});
-  $('#menuBtn').hidden=(name==='home');
-  if(name==='home'){$('#menu').hidden=true}
+  ['home','lobby','game','records'].forEach(function(n){$('#'+n).hidden=(n!==name)});
+  $('#menuBtn').hidden=(name==='home'||name==='records');
+  if(name==='home'||name==='records'){$('#menu').hidden=true}
+  if(name==='records')renderRecords();
   var ti='';
   if(name==='lobby')ti='Lobby '+esc(G.code||'');
   if(name==='game'&&G.mode==='multi')ti='Room '+esc(G.code||'');
@@ -397,6 +442,14 @@ function buildHome(){
   var nm=store.get('asa-name');if(nm)$('#nameInput').value=nm;
   if(store.get('asa-mode')==='classic')G.tycoon=false;
   try{var hh=JSON.parse(store.get('asa-hide')||'{}');G.hide={shares:!!hh.shares,worth:!!hh.worth,founders:!!hh.founders,offers:!!hh.offers}}catch(e){}
+  try{var pf=JSON.parse(store.get('asa-prefs')||'{}');G.prefs={sound:pf.sound!==false,preview:!!pf.preview}}catch(e){}
+  try{var ai=JSON.parse(store.get('asa-ai')||'{}');if(['easy','normal','hard'].indexOf(ai.lvl)>=0)G.ai.lvl=ai.lvl;if(['mixed'].concat(PERS_LIST).indexOf(ai.pers)>=0)G.ai.pers=ai.pers}catch(e){}
+  ['Sound','Preview'].forEach(function(k){$('#pref'+k).addEventListener('click',function(){G.prefs[k.toLowerCase()]=!G.prefs[k.toLowerCase()];store.set('asa-prefs',JSON.stringify(G.prefs));setModeUi();if(k==='Sound'&&G.prefs.sound)sfxKaching(false)})});
+  ['lvl','pers'].forEach(function(k){Array.prototype.forEach.call(document.querySelectorAll('#'+k+'Seg button'),function(b){b.addEventListener('click',function(){G.ai[k]=b.dataset.v;store.set('asa-ai',JSON.stringify(G.ai));setModeUi()})})});
+  $('#recordsBtn').addEventListener('click',function(){showScreen('records')});
+  $('#recBack').addEventListener('click',function(){showScreen('home')});
+  $('#recClear').addEventListener('click',function(){var b=$('#recClear');if(b.dataset.sure){store.del(REC_KEY);b.dataset.sure='';b.textContent='Clear records';renderRecords()}else{b.dataset.sure='1';b.textContent='Tap again to clear everything';setTimeout(function(){b.dataset.sure='';b.textContent='Clear records'},4000)}});
+  document.addEventListener('pointerdown',function unlock(){audio();document.removeEventListener('pointerdown',unlock)});
   setModeUi();
   ['Shares','Worth','Founders','Offers'].forEach(function(k){$('#hide'+k).addEventListener('click',function(){G.hide[k.toLowerCase()]=!G.hide[k.toLowerCase()];store.set('asa-hide',JSON.stringify(G.hide));setModeUi()})});
   Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'),function(b){b.addEventListener('click',function(){G.tycoon=(b.dataset.m==='tycoon');store.set('asa-mode',G.tycoon?'tycoon':'classic');setModeUi()})});
@@ -446,6 +499,12 @@ function hideText(h){
   return t+(r.length?(t?' ':'')+'Extra rules on: '+r.join(' and ')+'.':'');
 }
 function setModeUi(){
+  $('#prefSound').setAttribute('aria-pressed',G.prefs.sound?'true':'false');$('#prefSound').textContent=(G.prefs.sound?'On: ':'Off: ')+'sound and vibration on payouts';
+  $('#prefPreview').setAttribute('aria-pressed',G.prefs.preview?'true':'false');$('#prefPreview').textContent=(G.prefs.preview?'On: ':'Off: ')+'payout preview before you place a tile';
+  ['lvl','pers'].forEach(function(k){Array.prototype.forEach.call(document.querySelectorAll('#'+k+'Seg button'),function(b){b.setAttribute('aria-pressed',b.dataset.v===G.ai[k]?'true':'false')})});
+  var LN={easy:'Easy: plays carelessly, buys little.',normal:'Normal: a solid all-rounder.',hard:'Hard: sharp tile choices and smarter buying.'};
+  var PN={mixed:'Mixed gives each AI a different style.',balanced:'Balanced: plays it straight.',cautious:'Cautious: keeps cash back and sells in mergers.',ruthless:'Ruthless: chases mergers and majorities.',chaotic:'Chaotic: wild buyer, hard to read.'};
+  $('#aiNote').textContent=LN[G.ai.lvl]+' '+PN[G.ai.pers]
   $('#hideShares').setAttribute('aria-pressed',G.hide.shares?'true':'false');$('#hideWorth').setAttribute('aria-pressed',G.hide.worth?'true':'false');
   $('#hideShares').textContent=(G.hide.shares?'On: ':'Off: ')+'hide other players\' shares';$('#hideWorth').textContent=(G.hide.worth?'On: ':'Off: ')+'hide live net worth';
   $('#hideFounders').setAttribute('aria-pressed',G.hide.founders?'true':'false');$('#hideOffers').setAttribute('aria-pressed',G.hide.offers?'true':'false');
@@ -514,7 +573,7 @@ function startLocal(){
   store.set('asa-lnames',JSON.stringify(names));
   var used=[],defs=[];
   names.forEach(function(nm,k){var u=nm,j=2;while(used.indexOf(u.toLowerCase())>=0)u=nm+' '+(j++);used.push(u.toLowerCase());defs.push({id:'h'+k,name:u,bot:false})});
-  shuffled(BOT_NAMES).filter(function(x){return used.indexOf(x.toLowerCase())<0}).slice(0,ai).forEach(function(b,k){defs.push({id:'bot'+k,name:b,bot:true})});
+  makeBots(ai,used).forEach(function(b){defs.push(b)});
   var s=E.newGame(defs,null,{tycoon:G.tycoon,hide:G.hide,rules:G.hide});s.gid=newId();
   G.mode='local';G.state=s;G.viewer=-1;G.meIdx=-1;G.sel=null;G.ui={};
   saveSolo();showScreen('game');onState();
@@ -560,7 +619,7 @@ function confirmPass(){
 /* ---------- solo ---------- */
 function startSolo(nBots){
   var name=getName();store.set('asa-name',name);
-  var defs=[{id:'you',name:name,bot:false}].concat(shuffled(BOT_NAMES.filter(function(x){return x.toLowerCase()!==name.toLowerCase()})).slice(0,nBots).map(function(n,i){return {id:'bot'+i,name:n,bot:true}}));
+  var defs=[{id:'you',name:name,bot:false}].concat(makeBots(nBots,[name]));
   var s=E.newGame(defs,null,{tycoon:G.tycoon,hide:G.hide,rules:G.hide});s.gid=newId();
   G.mode='solo';G.state=s;G.meIdx=s.players.findIndex(function(p){return p.id==='you'});G.soloBots=nBots;G.sel=null;G.ui={};
   saveSolo();showScreen('game');onState();
@@ -569,6 +628,135 @@ function saveSolo(){if(!G.state)return;if(G.mode==='solo')store.set('asa-solo',J
 function resumeSolo(){
   try{var o=JSON.parse(store.get('asa-solo'));if(!o.state||!o.state.hist)throw new Error('old save');G.mode='solo';G.state=o.state;G.meIdx=G.state.players.findIndex(function(p){return p.id==='you'});G.soloBots=G.state.players.length-1;G.sel=null;G.ui={};showScreen('game');onState()}
   catch(e){toast('Could not resume that game.');store.del('asa-solo');$('#resumeBtn').hidden=true}
+}
+
+
+/* ---------- records ---------- */
+var REC_KEY='asa-records';
+function recLoad(){try{var o=JSON.parse(store.get(REC_KEY)||'null');if(o&&o.v===1&&Array.isArray(o.games)&&Array.isArray(o.gids))return o}catch(e){}return {v:1,games:[],gids:[]}}
+function recordGame(s){
+  if(!s||s.phase!=='over'||!s.hist||s.hist.length<2||!s.gid)return;
+  var o=recLoad();if(o.gids.indexOf(s.gid)>=0)return;
+  var pp;try{pp=E.perPlayer(s)}catch(e){return}
+  var humans=pp.filter(function(p){return !p.bot});
+  humans.forEach(function(p){o.games.push({n:p.name,t:p.total,r:p.rank,w:p.winner?1:0,np:s.players.length,m:p.margin,p:p.payout,pc:p.payoutChain,cb:p.comeback,d:Date.now(),md:G.mode,tc:s.tycoon!==false?1:0})});
+  o.gids.push(s.gid);
+  if(o.games.length>800)o.games=o.games.slice(-800);
+  if(o.gids.length>400)o.gids=o.gids.slice(-400);
+  store.set(REC_KEY,JSON.stringify(o));
+}
+function recBestBy(games,score,filter){
+  var by={};
+  games.forEach(function(g){
+    if(filter&&!filter(g))return;
+    var k=g.n.toLowerCase(),v=score(g);
+    if(v==null)return;
+    if(!by[k]||v>by[k].v)by[k]={v:v,g:g};
+  });
+  return Object.keys(by).map(function(k){return by[k]}).sort(function(a,b){return b.v-a.v});
+}
+function recList(items,limit,fmt){
+  if(!items.length)return '<p class="muted">Nothing here yet.</p>';
+  var h='<ol>';
+  items.slice(0,limit).forEach(function(it,i){var f=fmt(it);h+='<li><span class="rk">'+(i+1)+'.</span><span class="nm">'+esc(it.g.n)+'<span class="sub">'+f.sub+'</span></span><span class="vl">'+f.val+'</span></li>'});
+  return h+'</ol>';
+}
+function recDate(g){try{return new Date(g.d).toLocaleDateString()}catch(e){return ''}}
+function renderRecords(){
+  var o=recLoad(),g=o.games,h='';
+  if(!g.length){$('#recBody').innerHTML='<p class="muted">No finished games yet. Finish a game and the records start here.</p>';return}
+  h+='<h3>Top 20: most money at the end</h3>'+recList(recBestBy(g,function(x){return x.t}),20,function(it){return {val:esc(E.money(it.g.t)),sub:(it.g.w?'Won':ordN(it.g.r))+' in a '+it.g.np+'-player game &middot; '+recDate(it.g)}});
+  h+='<h3>Best wins</h3><p class="fine" style="margin:0 0 4px">Biggest winning margin over second place.</p>'+recList(recBestBy(g,function(x){return x.m>0?x.m:null},function(x){return x.w}),10,function(it){return {val:'+'+esc(E.money(it.g.m)),sub:'Finished with '+esc(E.money(it.g.t))+' &middot; '+recDate(it.g)}});
+  h+='<h3>Biggest payout</h3><p class="fine" style="margin:0 0 4px">Largest single bonus from a merger or the end of the game.</p>'+recList(recBestBy(g,function(x){return x.p>0?x.p:null}),10,function(it){var c=it.g.pc&&CH[it.g.pc]?esc(CH[it.g.pc].name):'';return {val:esc(E.money(it.g.p)),sub:(c?c+' &middot; ':'')+recDate(it.g)}});
+  h+='<h3>Best comeback</h3><p class="fine" style="margin:0 0 4px">Biggest climb from a low ranking to the final ranking.</p>'+recList(recBestBy(g,function(x){return x.cb?x.cb.gain*1000000+Math.min(x.cb.deficit,999999):null}),10,function(it){var c=it.g.cb;return {val:ordN(c.from)+' &rarr; '+ordN(c.to),sub:'From '+esc(E.money(c.deficit))+' behind the leader in round '+c.round+' &middot; '+recDate(it.g)}});
+  var tally={};g.forEach(function(x){var k=x.n.toLowerCase();var t=tally[k]||(tally[k]={n:x.n,gp:0,w:0});t.gp++;t.w+=x.w;t.n=x.n});
+  var rows=Object.keys(tally).map(function(k){return tally[k]}).sort(function(a,b){return b.w-a.w||a.gp-b.gp});
+  h+='<h3>Wins and games</h3><ol>';
+  rows.slice(0,10).forEach(function(r,i){h+='<li><span class="rk">'+(i+1)+'.</span><span class="nm">'+esc(r.n)+'<span class="sub">'+r.gp+' game'+(r.gp>1?'s':'')+' &middot; '+Math.round(100*r.w/r.gp)+'% wins</span></span><span class="vl">'+r.w+' win'+(r.w===1?'':'s')+'</span></li>'});
+  h+='</ol>';
+  $('#recBody').innerHTML=h;
+}
+function ordN(n){return n+(n%100>=11&&n%100<=13?'th':n%10===1?'st':n%10===2?'nd':n%10===3?'rd':'th')}
+
+/* ---------- sound and vibration ---------- */
+var AC=null;
+function audio(){
+  if(!G.prefs.sound)return null;
+  if(AC===null){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){AC=false}}
+  if(AC&&AC.state==='suspended'){try{AC.resume()}catch(e){}}
+  return AC||null;
+}
+function tone(ac,f,t0,dur,vol,type){
+  var o=ac.createOscillator(),g=ac.createGain();
+  o.type=type||'triangle';o.frequency.setValueAtTime(f,ac.currentTime+t0);
+  g.gain.setValueAtTime(0.0001,ac.currentTime+t0);
+  g.gain.exponentialRampToValueAtTime(vol,ac.currentTime+t0+0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+t0+dur);
+  o.connect(g);g.connect(ac.destination);o.start(ac.currentTime+t0);o.stop(ac.currentTime+t0+dur+0.05);
+}
+function sfxKaching(big){
+  var ac=audio();
+  if(ac){try{
+    tone(ac,988,0,0.12,0.18,'square');tone(ac,1319,0.09,0.5,0.2,'triangle');tone(ac,2637,0.09,0.35,0.07,'sine');
+    if(big){tone(ac,1568,0.22,0.5,0.16,'triangle');tone(ac,2093,0.34,0.7,0.14,'triangle')}
+  }catch(e){}}
+  buzz(big?[40,60,40,60,90]:[40,50,60]);
+}
+function sfxWin(){
+  var ac=audio();
+  if(ac){try{[523,659,784,1047].forEach(function(f,i){tone(ac,f,i*0.13,0.45,0.16,'triangle')});tone(ac,1319,0.6,0.9,0.12,'sine')}catch(e){}}
+  buzz([60,60,60,60,160]);
+}
+function buzz(p){if(G.prefs.sound&&navigator.vibrate){try{navigator.vibrate(p)}catch(e){}}}
+function sfxCheck(s){
+  var prev=G.sfx;
+  if(!prev||prev.gid!==s.gid){G.sfx={gid:s.gid,rev:s.rev,m:s.players.map(function(p){return p.st.mbonus}),over:s.phase==='over'};return}
+  if(s.rev===prev.rev)return;
+  var gain=0;
+  s.players.forEach(function(p,i){
+    if(p.bot)return;
+    if(G.mode==='local'||i===G.meIdx){var d=p.st.mbonus-(prev.m[i]||0);if(d>0)gain=Math.max(gain,d)}
+  });
+  var won=false;
+  if(s.phase==='over'&&!prev.over&&s.over&&s.over.results){
+    s.over.results.forEach(function(r,i){if(r.winner&&!s.players[i].bot&&(G.mode==='local'||i===G.meIdx))won=true});
+  }
+  G.sfx={gid:s.gid,rev:s.rev,m:s.players.map(function(p){return p.st.mbonus}),over:s.phase==='over'};
+  if(won)sfxWin();else if(gain>0)sfxKaching(gain>=10000);
+}
+function previewHtml(s){
+  if(!G.prefs.preview||G.sel==null||G.meIdx<0)return '';
+  var pv=E.previewMerge(s,G.sel,G.meIdx);if(!pv||!pv.rows.length)return '';
+  var tot=0,h='<div class="note pv" style="margin-top:8px"><b>Payout preview</b>';
+  if(pv.tie)h+='<br><span class="muted">Sizes are tied, so you pick the survivor. Each company is shown as if it were swallowed.</span>';
+  h+='<ul>';
+  pv.rows.forEach(function(r){
+    var nm=chainSw(r.chain)+' <b>'+esc(CH[r.chain].name)+'</b>',sell=r.held?' Your '+r.held+' share'+(r.held>1?'s':'')+' would sell for '+E.money(r.held*r.price)+'.':'';
+    if(r.amt>0){tot+=r.amt+r.founder;h+='<li>'+(r.kind.indexOf('tied')===0?'You\'d be <b>'+esc(r.kind)+'</b>':'You\'d be <b>'+esc(r.kind.replace(' place',''))+'</b>')+' in '+nm+': <b>+'+E.money(r.amt)+'</b>'+(r.founder?' and <b>+'+E.money(r.founder)+'</b> founder\'s bonus':'')+'.'+sell+'</li>'}
+    else if(r.held){tot+=r.founder;h+='<li>You hold '+r.held+' '+nm+' but not enough for a bonus.'+(r.founder?' Founder\'s bonus <b>+'+E.money(r.founder)+'</b>.':'')+sell+'</li>'}
+    else{tot+=r.founder;h+='<li>No '+nm+' shares, so no bonus.'+(r.founder?' Founder\'s bonus <b>+'+E.money(r.founder)+'</b>.':'')+'</li>'}
+  });
+  h+='</ul>'+(pv.rows.length>1&&!pv.tie?'<div style="margin-top:6px">Total bonuses: <b>+'+E.money(tot)+'</b></div>':'')+'</div>';
+  return h;
+}
+function aiTag(p){
+  var t='AI',cap=function(x){return x.charAt(0).toUpperCase()+x.slice(1)};
+  if(p.pers&&p.pers!=='balanced')t+=' &middot; '+cap(p.pers);
+  if(p.lvl&&p.lvl!=='normal')t+=' &middot; '+cap(p.lvl);
+  return t;
+}
+var PERS_NAMES={balanced:['Sipho','Pieter','Ayanda','Johan'],cautious:['Oom Koos','Tannie Elna','Mpho','Lerato'],ruthless:['Sizwe','Charlene','Kobus','Thabo'],chaotic:['Zola','Bheki','Naledi','Zanele']};
+var PERS_LIST=['balanced','cautious','ruthless','chaotic'];
+function makeBots(n,usedNames,idPrefix){
+  var used=usedNames.map(function(x){return String(x).toLowerCase()}),out=[],order=[];
+  while(order.length<n)order=order.concat(shuffled(PERS_LIST));
+  for(var k=0;k<n;k++){
+    var pers=G.ai.pers==='mixed'?order[k]:G.ai.pers;
+    var pool=shuffled(PERS_NAMES[pers]).concat(shuffled(BOT_NAMES)).filter(function(x){return used.indexOf(x.toLowerCase())<0});
+    var nm=pool[0]||('Bot '+(k+1));used.push(nm.toLowerCase());
+    out.push({id:(idPrefix||'bot')+k,name:nm,bot:true,pers:pers,lvl:G.ai.lvl});
+  }
+  return out;
 }
 
 /* ---------- multiplayer ---------- */
@@ -612,13 +800,13 @@ var dbNet={
     var db=G.db,unsubs=[];
     unsubs.push(db.doc('games/'+code).onSnapshot(function(sn){h.meta(sn.exists?sn.data():null)},function(){h.warn('Lost connection to the game.')}));
     unsubs.push(db.collection('games/'+code+'/lobby').onSnapshot(function(sn){
-      h.lobby(sn.docs.map(function(d){var v=d.data();return {id:d.id,name:v.name,bot:v.bot,t:v.t}}));
+      h.lobby(sn.docs.map(function(d){var v=d.data();return {id:d.id,name:v.name,bot:v.bot,pers:v.pers,lvl:v.lvl,t:v.t}}));
     },function(){}));
     unsubs.push(db.doc('games/'+code+'/gs/cur').onSnapshot(function(sn){if(sn.exists)h.state(sn.data())},function(){h.warn('Lost connection to the game.')}));
     return function(){unsubs.forEach(function(u){try{u()}catch(e){}})};
   },
   setHide:function(code,h){return G.db.doc('games/'+code).update({hide:h})},
-  lobbyAdd:function(code,e){return G.db.doc('games/'+code+'/lobby/'+e.id).set({name:e.name,bot:e.bot,t:Date.now()})},
+  lobbyAdd:function(code,e){return G.db.doc('games/'+code+'/lobby/'+e.id).set({name:e.name,bot:e.bot,pers:e.pers||'balanced',lvl:e.lvl||'normal',t:Date.now()})},
   lobbyRemove:function(code,id){return G.db.doc('games/'+code+'/lobby/'+id).delete()},
   start:async function(code,s){await G.db.doc('games/'+code+'/gs/cur').set(s);await G.db.doc('games/'+code).update({status:'playing'})},
   push:function(code,s){return G.db.doc('games/'+code+'/gs/cur').set(s)},
@@ -782,7 +970,7 @@ var mqttNet={
     return mqStop;
   },
   setHide:function(code,h){MQ.doc.hide=h;return mqPublishLobby()},
-  lobbyAdd:function(code,e){MQ.doc.players.push({id:e.id,name:e.name,bot:!!e.bot,t:Date.now()});return mqPublishLobby()},
+  lobbyAdd:function(code,e){MQ.doc.players.push({id:e.id,name:e.name,bot:!!e.bot,pers:e.pers||'balanced',lvl:e.lvl||'normal',t:Date.now()});return mqPublishLobby()},
   lobbyRemove:function(code,id){
     MQ.doc.players=MQ.doc.players.filter(function(p){return p.id!==id||p.id===MQ.doc.host});return mqPublishLobby();
   },
@@ -861,7 +1049,7 @@ function openRoom(code,isHost){
       G.meta=m;G.isHost=(m.host===G.uid);renderLobby();
     },
     lobby:function(list){
-      G.lobby=list.map(function(v){return {id:String(v.id),name:String(v.name||'Player').slice(0,14),bot:!!v.bot,t:+v.t||0}}).sort(function(a,b){return a.t-b.t});
+      G.lobby=list.map(function(v){return {id:String(v.id),name:String(v.name||'Player').slice(0,14),bot:!!v.bot,pers:v.pers||'balanced',lvl:v.lvl||'normal',t:+v.t||0}}).sort(function(a,b){return a.t-b.t});
       renderLobby();
     },
     state:function(ns){
@@ -907,7 +1095,7 @@ function renderLobby(){
   $('#lobbyHide').hidden=!G.isHost;
   Array.prototype.forEach.call(document.querySelectorAll('#lobbyHide button'),function(b){var k=b.dataset.h;b.setAttribute('aria-pressed',lh[k]?'true':'false');b.textContent=(lh[k]?'On: ':'Off: ')+OPT_LABEL[k]});
   $('#plist').innerHTML=G.lobby.map(function(p){
-    var tags=(p.id===hostId?'<span class="badge">host</span>':'')+(p.bot?'<span class="badge">AI</span>':'')+(p.id===G.uid?'<span class="badge">you</span>':'');
+    var tags=(p.id===hostId?'<span class="badge">host</span>':'')+(p.bot?'<span class="badge">'+aiTag(p)+'</span>':'')+(p.id===G.uid?'<span class="badge">you</span>':'');
     var rm=(G.isHost&&p.bot)?'<button class="btn alt small" data-rm="'+esc(p.id)+'" aria-label="Remove '+esc(p.name)+'">Remove</button>':'';
     return '<li><div class="av" style="width:30px;height:30px;font-size:14px">'+initial(p.name)+'</div><span class="nm">'+esc(p.name)+'</span>'+tags+rm+'</li>';
   }).join('');
@@ -921,12 +1109,12 @@ async function lobbyAction(a){
     if(a==='addbot'){
       if(G.lobby.length>=6)return;
       var used=G.lobby.map(function(p){return p.name.toLowerCase()});
-      var nm=shuffled(BOT_NAMES).filter(function(x){return used.indexOf(x.toLowerCase())<0})[0]||'Bot';
-      var id='bot-'+Math.random().toString(36).slice(2,7);
-      await G.net.lobbyAdd(G.code,{id:id,name:nm,bot:true});
+      var nb=makeBots(1,used)[0];
+      nb.id='bot-'+Math.random().toString(36).slice(2,7);
+      await G.net.lobbyAdd(G.code,nb);
     }else if(a==='start'){
       if(G.lobby.length<2){toast('You need at least 2 players.');return}
-      var defs=G.lobby.slice(0,6).map(function(p){return {id:p.id,name:p.name,bot:p.bot}});
+      var defs=G.lobby.slice(0,6).map(function(p){return {id:p.id,name:p.name,bot:p.bot,pers:p.pers,lvl:p.lvl}});
       var s=E.newGame(defs,null,{tycoon:!(G.meta&&G.meta.tycoon===false),hide:(G.meta&&G.meta.hide)||{},rules:(G.meta&&G.meta.hide)||{}});s.gid=newId();
       await G.net.start(G.code,s);
       if(G.net.kind==='mqtt')adoptState(s);
@@ -944,13 +1132,13 @@ async function removeBot(id){
 }
 async function rematch(){
   if(G.mode==='local'){
-    var defsL=G.state.players.map(function(p){return {id:p.id,name:p.name,bot:p.bot}});
+    var defsL=G.state.players.map(function(p){return {id:p.id,name:p.name,bot:p.bot,pers:p.pers,lvl:p.lvl}});
     var sl=E.newGame(defsL,null,{tycoon:G.state.tycoon!==false,hide:G.state.hide,rules:G.state.rules});sl.gid=newId();
     G.viewer=-1;G.meIdx=-1;G.sel=null;G.ui={};G.state=sl;saveSolo();onState();return;
   }
   if(G.mode==='solo'){G.tycoon=(G.state.tycoon!==false);G.hide={shares:!!(G.state.hide&&G.state.hide.shares),worth:!!(G.state.hide&&G.state.hide.worth),founders:!!(G.state.rules&&G.state.rules.founders),offers:!!(G.state.rules&&G.state.rules.offers)};startSolo(G.soloBots);return}
   if(!G.isHost||!G.state)return;
-  var defs=G.state.players.map(function(p){return {id:p.id,name:p.name,bot:p.bot}});
+  var defs=G.state.players.map(function(p){return {id:p.id,name:p.name,bot:p.bot,pers:p.pers,lvl:p.lvl}});
   var s=E.newGame(defs,null,{tycoon:G.state.tycoon!==false,hide:G.state.hide,rules:G.state.rules});s.gid=newId();
   G.sel=null;G.ui={};
   commit(s);
@@ -990,6 +1178,8 @@ function onState(){
   var myTurnPlace=(G.meIdx>=0&&E.actorOf(s)===G.meIdx&&s.phase==='place');
   if(!myTurnPlace)G.sel=null;
   else if(G.sel!=null&&s.players[G.meIdx].hand.indexOf(G.sel)<0)G.sel=null;
+  if(s.phase==='over')recordGame(s);
+  sfxCheck(s);
   render();scheduleBot();
 }
 function render(){renderStatus();renderBoard();renderActions();renderHand();renderMarket();renderPlayers();renderLog();renderEnd()}
@@ -1168,7 +1358,7 @@ function renderActions(){
   if(s.phase==='place'){
     h='<h3>Play a tile</h3>';
     if(G.sel==null)h+='<p class="muted">Tap a tile below, or one of your tiles on the board.</p>';
-    else h+='<p><b class="mono">'+E.tileLabel(G.sel)+'</b> '+effectText(s,G.sel)+'</p><div class="row"><button class="btn" data-a="place">Place '+E.tileLabel(G.sel)+'</button></div>';
+    else h+='<p><b class="mono">'+E.tileLabel(G.sel)+'</b> '+effectText(s,G.sel)+'</p>'+previewHtml(s)+'<div class="row"><button class="btn" data-a="place">Place '+E.tileLabel(G.sel)+'</button></div>';
     if(E.endCondition(s)&&(s.hide&&s.hide.worth)){
       h+='<p class="note" style="margin-top:10px">The game can be ended now.</p><button class="btn alt small" data-a="end" style="margin-top:8px">End the game now</button>';
     }else if(E.endCondition(s)){
@@ -1286,7 +1476,7 @@ function renderPlayers(){
     if(!chips)chips='<span class="muted" style="font-size:12px">no shares</span>';
     var vi=G.mode==='local'?G.viewer:G.meIdx,hd=s.hide||{};
     if(hd.shares&&s.phase!=='over'&&i!==vi)chips='<span class="muted" style="font-size:12px">shares hidden</span>';
-    var tags=(p.bot?' <span class="badge">AI</span>':'')+(i===G.meIdx?' <span class="badge">you</span>':'');
+    var tags=(p.bot?' <span class="badge">'+aiTag(p)+'</span>':'')+(i===G.meIdx?' <span class="badge">you</span>':'');
     var cash=s.phase==='over'?s.over.results[i].total:p.cash;
     h+='<div class="prow'+(i===a?' turn':'')+'"><div class="av">'+initial(p.name)+'</div><div class="pn">'+esc(p.name)+tags+'</div><div class="pc">'+money(cash)+'</div><div class="chips">'+chips+'</div><div class="pw">'+(s.phase==='over'?'final':(hd.worth?'':'if ended now '+money(pr[i].total)))+'</div></div>';
   });

@@ -30,6 +30,8 @@ with sync_playwright() as p:
                     # does the other hold shares? just try
                     f.click('#actions [data-a=oform]')
                     for k in range(3): f.click('#actions [data-a="oam:1000"]')
+                    if f.query_selector('#actions [data-a=osend][disabled]'):
+                        f.click('#actions [data-a=oclose]'); continue
                     f.click('#actions [data-a=osend]'); f.wait_for_timeout(1200)
                     txt=o.inner_text('#actions')
                     if 'Offer from' in txt:

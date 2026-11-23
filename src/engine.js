@@ -164,7 +164,7 @@
     for (i = 0; i < N; i++) bag.push(i);
     shuffle(bag, rng);
     var players = defs.map(function (d) {
-      return { id: d.id, name: d.name, bot: !!d.bot, cash: START_CASH, stocks: [0, 0, 0, 0, 0, 0, 0, 0], hand: [],
+      return { id: d.id, name: d.name, bot: !!d.bot, pers: d.pers || 'balanced', lvl: d.lvl || 'normal', cash: START_CASH, stocks: [0, 0, 0, 0, 0, 0, 0, 0], hand: [],
         st: { spent: 0, bought: 0, proceeds: 0, mbonus: 0, founded: 0, merges: 0, best: { amt: 0, chain: 0, kind: '', final: false } } };
     });
     var s = { v: 2, rev: 0, tycoon: !(opts && opts.tycoon === false), hide: { shares: !!(opts && opts.hide && opts.hide.shares), worth: !!(opts && opts.hide && opts.hide.worth) }, rules: { founders: !!(opts && opts.rules && opts.rules.founders), offers: !!(opts && opts.rules && opts.rules.offers) }, founder: {}, oc: 0, offer: null, hist: [], players: players, board: [], bag: bag, discard: [], turn: 0, phase: 'place', pend: null, log: [], over: null };
@@ -593,21 +593,34 @@
       });
       sc += me.stocks[surv] * 80;
     }
-    return sc + rng() * 45;
+    var pers = me.pers || 'balanced', lvl = me.lvl || 'normal';
+    if (an.kind === 'merge') { if (pers === 'cautious') sc = sc * 0.7 - 40; else if (pers === 'ruthless') sc = sc * 1.4 + 60; }
+    else if (an.kind === 'found' && pers === 'ruthless') sc += 80;
+    var noise = lvl === 'easy' ? 110 : lvl === 'hard' ? 12 : 45;
+    if (pers === 'chaotic') noise = Math.max(noise, 220);
+    return sc + rng() * noise;
   }
   function stake(s, i, c) { return s.players[i].stocks[c]; }
 
   function botAction(s, rng) {
     rng = rng || Math.random;
     var i = actorOf(s), me = s.players[i], sz = sizes(s.board), k;
+    var P = me.pers || 'balanced', L = me.lvl || 'normal';
     if (s.offer) {
       var of = s.offer, worthB = price(of.chain, sz[of.chain] || 2) * of.qty;
-      return { type: 'respond', accept: of.amt >= worthB * (1.25 + rng() * 0.4) && me.stocks[of.chain] >= of.qty };
+      var P0 = me.pers || 'balanced', L0 = me.lvl || 'normal', need = 1.25 + rng() * 0.4;
+      if (P0 === 'cautious') need = 1.15 + rng() * 0.2; else if (P0 === 'ruthless') need = 1.8 + rng() * 0.6;
+      if (L0 === 'easy') need = 1.1 + rng() * 0.15; else if (L0 === 'hard') need += 0.3;
+      var yes = of.amt >= worthB * need && me.stocks[of.chain] >= of.qty;
+      if (P0 === 'chaotic') yes = me.stocks[of.chain] >= of.qty && rng() < 0.5;
+      return { type: 'respond', accept: yes };
     }
     switch (s.phase) {
       case 'place': {
-        if (endCondition(s) && leader(s, i)) return { type: 'declareEnd' };
+        if (endCondition(s) && (leader(s, i) || (P === 'chaotic' && rng() < 0.25))) return { type: 'declareEnd' };
         var best = null, bs = -1e9;
+        var playable = me.hand.filter(function (t) { return isPlayable(s.board, t); });
+        if (playable.length && ((L === 'easy' && rng() < 0.35) || (P === 'chaotic' && rng() < 0.3))) return { type: 'place', t: playable[Math.floor(rng() * playable.length)] };
         me.hand.forEach(function (t) {
           if (!isPlayable(s.board, t)) return;
           var sc = scoreTile(s, i, t, rng);
@@ -618,7 +631,7 @@
       case 'found': {
         var free = [];
         for (var c = 1; c <= 7; c++) if (sz[c] === 0) free.push(c);
-        free.sort(function (a, b) { return (CHAINS[b].tier - CHAINS[a].tier) + (rng() - 0.5) * 1.5; });
+        free.sort(function (a, b) { return (CHAINS[b].tier - CHAINS[a].tier) + (rng() - 0.5) * (P === 'chaotic' ? 20 : L === 'easy' ? 6 : 1.5); });
         return { type: 'found', chain: free[0] };
       }
       case 'mergePick':
@@ -635,26 +648,40 @@
         var canTrade = Math.min(Math.floor(held / 2) * 2, bankLeft(s, p.survivor) * 2);
         var trade = 0;
         if (total >= 11 || (me.stocks[p.survivor] > 0 && survPrice >= p.price * 1.5)) trade = canTrade;
+        if (P === 'ruthless' && me.stocks[p.survivor] > 0) trade = canTrade;
+        if (P === 'chaotic') trade = Math.min(canTrade, 2 * Math.floor(rng() * (canTrade / 2 + 1)));
+
         var rest = held - trade, sell;
         if (me.cash < 3500 || rest <= 1 || total >= 25) sell = rest;
         else sell = Math.floor(rest / 2);
+        if (P === 'cautious') sell = rest;
+        else if (P === 'ruthless') sell = Math.floor(rest / 3);
+        else if (P === 'chaotic') sell = Math.floor(rng() * (rest + 1));
         return { type: 'dispose', sell: sell, trade: trade };
       }
       case 'buy': {
         var buys = {}, cash = me.cash, n = 0;
+        var maxBuy = 3, reserve = 0, wPot = 100, wMaj = 40, noiseB = 20;
+        if (P === 'cautious') { maxBuy = 3; reserve = 1500; }
+        else if (P === 'ruthless') { wMaj = 90; wPot = 110; }
+        if (L === 'easy') { maxBuy = 2; noiseB = 60; }
+        else if (L === 'hard') { wPot = 220; wMaj = 10; noiseB = 6; }
+        if (P === 'chaotic' && rng() < 0.1) maxBuy = 0;
         var left = {};
         for (k = 1; k <= 7; k++) left[k] = bankLeft(s, k);
         var mine = me.stocks.slice();
-        while (n < 3) {
+        while (n < maxBuy) {
           var pick = 0, ps = -1e9;
           for (k = 1; k <= 7; k++) {
             if (sz[k] < 2 || left[k] < 1) continue;
             var pr = price(k, sz[k]);
-            if (pr > cash) continue;
+            if (pr > cash || cash - pr < reserve) continue;
             var maxO = 0;
             for (var o = 0; o < s.players.length; o++) if (o !== i) maxO = Math.max(maxO, s.players[o].stocks[k]);
             var potential = (price(k, sz[k] + 6) - pr) / pr;
-            var sc = potential * 100 + (mine[k] + 1 > maxO ? 40 : 0) + (mine[k] > 0 ? 15 : 0) + (sz[k] >= 41 ? -80 : 0) + rng() * 20;
+            var sc = potential * wPot + (mine[k] + 1 > maxO ? wMaj : 0) + (mine[k] > 0 ? 15 : 0) + (sz[k] >= 41 ? -80 : 0) + rng() * noiseB;
+            if (P === 'cautious' && sz[k] >= 8) sc += 50;
+            if (P === 'chaotic') sc = rng() * 100;
             if (sc > ps) { ps = sc; pick = k; }
           }
           if (!pick) break;
@@ -663,14 +690,49 @@
           if (cash < 300) break;
         }
         var a = { type: 'buy', buys: buys };
-        if (endCondition(s) && leader(s, i)) a.end = true;
+        if (endCondition(s) && (leader(s, i) || (P === 'chaotic' && rng() < 0.25))) a.end = true;
         return a;
       }
     }
     return null;
   }
 
+  function previewMerge(s, t, idx) {
+    var an = analyze(s.board, t);
+    if (an.kind !== 'merge') return null;
+    var sz = sizes(s.board), max = Math.max.apply(null, an.chains.map(function (c) { return sz[c]; }));
+    var tied = an.chains.filter(function (c) { return sz[c] === max; }), rows = [];
+    an.chains.forEach(function (c) {
+      if (tied.length === 1 && c === tied[0]) return;
+      var pr = price(c, sz[c]), mine = null;
+      computeBonuses(s, c, pr).forEach(function (b) { if (b.i === idx) mine = b; });
+      var fb = (s.rules && s.rules.founders && s.founder && s.founder[c] === idx) ? 1000 : 0;
+      rows.push({ chain: c, size: sz[c], price: pr, held: s.players[idx].stocks[c], amt: mine ? mine.amt : 0, kind: mine ? mine.kind : '', place: mine ? mine.place : 0, founder: fb });
+    });
+    return { tie: tied.length > 1, survivors: tied, rows: rows };
+  }
+  function perPlayer(s) {
+    var n = s.players.length, res = s.over.results, hist = s.hist, from = Math.min(hist.length - 1, 2 * n), out = [], i, k;
+    var best = Math.max.apply(null, res.map(function (r) { return r.total; }));
+    var others = res.filter(function (r) { return r.total !== best; }).map(function (r) { return r.total; });
+    var margin = others.length ? best - Math.max.apply(null, others) : 0;
+    for (i = 0; i < n; i++) {
+      var fr = rankIn(hist[hist.length - 1], i), worst = 1, wAt = 0, wDef = 0;
+      for (k = from; k < hist.length - 1; k++) {
+        var r = rankIn(hist[k], i), lead = Math.max.apply(null, hist[k]), def = lead - hist[k][i];
+        if (r > worst || (r === worst && def > wDef)) { worst = r; wAt = k; wDef = def; }
+      }
+      var gain = worst - fr, st = s.players[i].st;
+      var rank = 1 + res.filter(function (x) { return x.total > res[i].total; }).length;
+      out.push({ i: i, name: s.players[i].name, bot: !!s.players[i].bot, total: res[i].total, rank: rank, winner: res[i].total === best,
+        margin: res[i].total === best ? margin : 0, payout: st.best.amt, payoutChain: st.best.chain,
+        comeback: gain > 0 ? { from: worst, to: fr, gain: gain, deficit: wDef, round: Math.floor(wAt / n) + 1 } : null });
+    }
+    return out;
+  }
+
   root.AcquireEngine = {
+    previewMerge: previewMerge, perPlayer: perPlayer,
     COLS: COLS, ROWS: ROWS, N: N, HAND: HAND, SHARES: SHARES, CHAINS: CHAINS,
     tileLabel: tileLabel, nbrs: nbrs, sizes: sizes, activeIds: activeIds, price: price,
     bankLeft: bankLeft, analyze: analyze, isPlayable: isPlayable, endCondition: endCondition,
