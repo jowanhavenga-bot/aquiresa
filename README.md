@@ -7,6 +7,7 @@ Found companies, grow them, hold the biggest stakes when they merge, and finish 
 
 - **Solo against AI**: 1 to 5 computer opponents.
 - **Pass and play**: 2 to 6 people on one phone, each with their own name. A cover screen hides each player's tiles while the phone changes hands. AI seats are optional.
+- **Secret mode**: two switches on the home screen (and in the host's lobby): hide other players' shares, and hide the live "if ended now" net worth. Everything is revealed when the game ends.
 - **Online rooms**: the host taps Host and shares a 5-character code; friends type it under Join. Nobody needs an account or any access. Moves travel through a free public MQTT relay (EMQX, with HiveMQ as backup) and the host's page acts as referee and runs the AI, so the host must keep the page open. Rooms are not private: anyone who knows or guesses a code can join the lobby, so treat it as casual play. On the Claude artifact version, online rooms use the artifact database instead and work only for the owner and invited editors.
 
 ## Rules in brief

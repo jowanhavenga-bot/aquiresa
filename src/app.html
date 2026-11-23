@@ -53,6 +53,8 @@ input[type=text]{font:inherit;color:var(--ink);background:var(--surface2);border
 label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
 .seg{display:flex;gap:6px;flex-wrap:wrap}
 .seg button{min-width:44px;min-height:44px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);font-weight:600;font-family:var(--mono)}
+.seg-toggle{min-height:44px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);font-weight:600;text-align:left;padding:0 14px;color:var(--ink)}
+.seg-toggle[aria-pressed=true]{background:var(--btn);color:var(--btnink);border-color:var(--btn)}
 .seg button[aria-pressed=true]{background:var(--btn);color:var(--btnink);border-color:var(--btn)}
 /* home */
 .home{display:grid;gap:12px;grid-template-columns:1fr}
@@ -204,6 +206,14 @@ details.rules li{margin:5px 0;max-width:70ch}
           <p class="fine" id="modeNote" style="margin:6px 0 0"></p>
         </div>
         <div>
+          <label>Secret mode</label>
+          <div class="stack" style="gap:6px">
+            <button class="seg-toggle" id="hideShares" aria-pressed="false">Hide other players' shares</button>
+            <button class="seg-toggle" id="hideWorth" aria-pressed="false">Hide live net worth</button>
+          </div>
+          <p class="fine" id="hideNote" style="margin:6px 0 0"></p>
+        </div>
+        <div>
           <h3>Play solo against the AI</h3>
           <p class="muted" style="margin:4px 0 8px">How many AI opponents?</p>
           <div class="seg" id="botSeg" role="group" aria-label="Number of AI opponents">
@@ -267,6 +277,10 @@ details.rules li{margin:5px 0;max-width:70ch}
           <div class="code" id="lobbyCode"></div>
           <p class="muted" style="margin:4px 0 0;font-size:14px">Friends open this page, type the code under Join and they are in. Keep this page open while you host.</p>
           <p class="note" id="lobbyMode" style="margin:8px 0 0"></p>
+          <div class="stack" id="lobbyHide" style="gap:6px;margin-top:8px" hidden>
+            <button class="seg-toggle" data-h="shares" aria-pressed="false"></button>
+            <button class="seg-toggle" data-h="worth" aria-pressed="false"></button>
+          </div>
         </div>
         <div class="row"><button class="btn alt small" id="copyCode">Copy code</button><button class="btn alt small" id="copyLink">Copy invite link</button></div>
         <div><h3 style="margin-bottom:8px">Players <span class="muted mono" id="lobbyCount"></span></h3><ul class="plist" id="plist"></ul></div>
@@ -337,7 +351,7 @@ var RULES='<ul>'
 +'<li><b>Ending.</b> Once any company reaches 41 tiles, or every company on the board is safe, the player whose turn it is may end the game. Final bonuses are paid, every share is sold, and the most cash wins.</li>'
 +'</ul>';
 
-var G={mode:null,tycoon:true,viewer:-1,passFor:-1,localN:2,localAi:0,code:null,isHost:false,state:null,meIdx:-1,meta:null,lobby:[],sel:null,ui:{},botTimer:null,unsubs:[],db:null,uid:null,
+var G={mode:null,tycoon:true,hide:{shares:false,worth:false},viewer:-1,passFor:-1,localN:2,localAi:0,code:null,isHost:false,state:null,meIdx:-1,meta:null,lobby:[],sel:null,ui:{},botTimer:null,unsubs:[],db:null,uid:null,
   serverState:null,cells:null,soloBots:3,screen:'home',confirmLeave:false,connTimer:null,stateRef:null,metaRef:null,lobbyRef:null,toastTimer:null};
 
 var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},del:function(k){try{localStorage.removeItem(k)}catch(e){}}};
@@ -372,7 +386,9 @@ function buildHome(){
   $('#rulesHome').innerHTML=RULES;$('#rulesGame').innerHTML=RULES;
   var nm=store.get('asa-name');if(nm)$('#nameInput').value=nm;
   if(store.get('asa-mode')==='classic')G.tycoon=false;
+  try{var hh=JSON.parse(store.get('asa-hide')||'{}');G.hide={shares:!!hh.shares,worth:!!hh.worth}}catch(e){}
   setModeUi();
+  ['Shares','Worth'].forEach(function(k){$('#hide'+k).addEventListener('click',function(){G.hide[k.toLowerCase()]=!G.hide[k.toLowerCase()];store.set('asa-hide',JSON.stringify(G.hide));setModeUi()})});
   Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'),function(b){b.addEventListener('click',function(){G.tycoon=(b.dataset.m==='tycoon');store.set('asa-mode',G.tycoon?'tycoon':'classic');setModeUi()})});
   var saved=store.get('asa-solo');
   if(saved){try{var o=JSON.parse(saved);if(o&&o.state&&o.state.phase!=='over')$('#resumeBtn').hidden=false}catch(e){}}
@@ -406,11 +422,19 @@ function buildHome(){
   $('#hand').addEventListener('click',function(e){var b=e.target.closest('[data-t]');if(!b||b.disabled)return;trySelect(+b.dataset.t)});
   $('#actions').addEventListener('click',function(e){var b=e.target.closest('[data-a]');if(!b||b.disabled)return;handleAction(b.dataset.a)});
   $('#lobbyBtns').addEventListener('click',function(e){var b=e.target.closest('[data-l]');if(!b||b.disabled)return;lobbyAction(b.dataset.l)});
+  $('#lobbyHide').addEventListener('click',function(e){var b=e.target.closest('[data-h]');if(b)toggleHide(b.dataset.h)});
   $('#plist').addEventListener('click',function(e){var b=e.target.closest('[data-rm]');if(!b)return;removeBot(b.dataset.rm)});
   var cells='';for(var t=0;t<108;t++)cells+='<div class="cell" data-t="'+t+'"></div>';
   $('#board').innerHTML=cells;G.cells=Array.prototype.slice.call($('#board').children);
 }
+function hideText(h){
+  var a=[];if(h&&h.shares)a.push('other players\' shares are hidden');if(h&&h.worth)a.push('live net worth is hidden');
+  return a.length?'Secret mode: '+a.join(' and ')+'. Everything is revealed when the game ends.':'';
+}
 function setModeUi(){
+  $('#hideShares').setAttribute('aria-pressed',G.hide.shares?'true':'false');$('#hideWorth').setAttribute('aria-pressed',G.hide.worth?'true':'false');
+  $('#hideShares').textContent=(G.hide.shares?'On: ':'Off: ')+'hide other players\' shares';$('#hideWorth').textContent=(G.hide.worth?'On: ':'Off: ')+'hide live net worth';
+  $('#hideNote').textContent=hideText(G.hide)||'Off by default. Your own shares and cash always stay visible to you.';
   Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'),function(b){b.setAttribute('aria-pressed',(b.dataset.m==='tycoon')===G.tycoon?'true':'false')});
   $('#modeNote').textContent=G.tycoon?'The top 3 shareholders are paid on every merger and at the end: 10x, 5x and 3x the share price.':'The top 2 shareholders are paid on every merger and at the end: 10x and 5x the share price.';
 }
@@ -474,7 +498,7 @@ function startLocal(){
   var used=[],defs=[];
   names.forEach(function(nm,k){var u=nm,j=2;while(used.indexOf(u.toLowerCase())>=0)u=nm+' '+(j++);used.push(u.toLowerCase());defs.push({id:'h'+k,name:u,bot:false})});
   shuffled(BOT_NAMES).filter(function(x){return used.indexOf(x.toLowerCase())<0}).slice(0,ai).forEach(function(b,k){defs.push({id:'bot'+k,name:b,bot:true})});
-  var s=E.newGame(defs,null,{tycoon:G.tycoon});s.gid=newId();
+  var s=E.newGame(defs,null,{tycoon:G.tycoon,hide:G.hide});s.gid=newId();
   G.mode='local';G.state=s;G.viewer=-1;G.meIdx=-1;G.sel=null;G.ui={};
   saveSolo();showScreen('game');onState();
 }
@@ -520,7 +544,7 @@ function confirmPass(){
 function startSolo(nBots){
   var name=getName();store.set('asa-name',name);
   var defs=[{id:'you',name:name,bot:false}].concat(shuffled(BOT_NAMES.filter(function(x){return x.toLowerCase()!==name.toLowerCase()})).slice(0,nBots).map(function(n,i){return {id:'bot'+i,name:n,bot:true}}));
-  var s=E.newGame(defs,null,{tycoon:G.tycoon});s.gid=newId();
+  var s=E.newGame(defs,null,{tycoon:G.tycoon,hide:G.hide});s.gid=newId();
   G.mode='solo';G.state=s;G.meIdx=s.players.findIndex(function(p){return p.id==='you'});G.soloBots=nBots;G.sel=null;G.ui={};
   saveSolo();showScreen('game');onState();
 }
@@ -548,10 +572,10 @@ function writeErr(e){
 /* Net 1: shared database (Claude page, owner and editors only). */
 var dbNet={
   kind:'db',guestActs:false,
-  host:async function(name,tycoon){
+  host:async function(name,tycoon,hide){
     var db=G.db,code,tries=0;
     do{code=randChars(5);var sn=await db.doc('games/'+code).get();if(!sn.exists)break;tries++}while(tries<8);
-    await db.doc('games/'+code).set({host:G.uid,status:'lobby',created:Date.now(),tycoon:tycoon});
+    await db.doc('games/'+code).set({host:G.uid,status:'lobby',created:Date.now(),tycoon:tycoon,hide:hide});
     await db.doc('games/'+code+'/lobby/'+G.uid).set({name:name,bot:false,t:Date.now()});
     return code;
   },
@@ -576,6 +600,7 @@ var dbNet={
     unsubs.push(db.doc('games/'+code+'/gs/cur').onSnapshot(function(sn){if(sn.exists)h.state(sn.data())},function(){h.warn('Lost connection to the game.')}));
     return function(){unsubs.forEach(function(u){try{u()}catch(e){}})};
   },
+  setHide:function(code,h){return G.db.doc('games/'+code).update({hide:h})},
   lobbyAdd:function(code,e){return G.db.doc('games/'+code+'/lobby/'+e.id).set({name:e.name,bot:e.bot,t:Date.now()})},
   lobbyRemove:function(code,id){return G.db.doc('games/'+code+'/lobby/'+id).delete()},
   start:async function(code,s){await G.db.doc('games/'+code+'/gs/cur').set(s);await G.db.doc('games/'+code).update({status:'playing'})},
@@ -602,7 +627,7 @@ var dbNet={
 var MQ={c:null,letter:null,code:null,on:{},timers:[],doc:null,seen:{},hostSeen:0,warned:false,myName:'Player',h:null,isHost:false};
 function mqT(code,n){return 'acquire-sa/v1/'+code+'/'+n}
 function mqFresh(d){return !!(d&&d.v===1&&d.ts&&Date.now()-d.ts<12*3600*1000&&Array.isArray(d.players))}
-function mqMeta(d){return {host:d.host,status:d.status,tycoon:d.tycoon,created:d.ts}}
+function mqMeta(d){return {host:d.host,status:d.status,tycoon:d.tycoon,hide:d.hide||{},created:d.ts}}
 function mqDispatch(topic,payload){
   var fn=MQ.on[topic];if(!fn)return;
   var doc=null;
@@ -675,7 +700,7 @@ function mqPrune(){
 }
 var mqttNet={
   kind:'mqtt',guestActs:true,
-  host:async function(name,tycoon){
+  host:async function(name,tycoon,hide){
     var letters=['E','H'],c=null,letter=null,code=null,i,tries;
     mqEnd();
     for(i=0;i<letters.length&&!c;i++){try{c=await mqConnect(letters[i]);letter=letters[i]}catch(e){c=null}}
@@ -687,7 +712,7 @@ var mqttNet={
     }
     if(!code){mqEnd();throw userErr('Could not find a free game code. Try again.')}
     MQ.code=code;
-    MQ.doc={v:1,host:G.uid,tycoon:tycoon,status:'lobby',players:[{id:G.uid,name:name,bot:false,t:Date.now()}],ts:Date.now()};
+    MQ.doc={v:1,host:G.uid,tycoon:tycoon,hide:hide,status:'lobby',players:[{id:G.uid,name:name,bot:false,t:Date.now()}],ts:Date.now()};
     try{await mqPub(mqT(code,'lobby'),MQ.doc,true)}catch(e){mqEnd();throw userErr('Could not reach the online relay. Check your connection and try again.')}
     return code;
   },
@@ -739,6 +764,7 @@ var mqttNet={
     mqSub(topics).catch(function(){h.warn('Could not subscribe to the game. Check your connection.')});
     return mqStop;
   },
+  setHide:function(code,h){MQ.doc.hide=h;return mqPublishLobby()},
   lobbyAdd:function(code,e){MQ.doc.players.push({id:e.id,name:e.name,bot:!!e.bot,t:Date.now()});return mqPublishLobby()},
   lobbyRemove:function(code,id){
     MQ.doc.players=MQ.doc.players.filter(function(p){return p.id!==id||p.id===MQ.doc.host});return mqPublishLobby();
@@ -768,7 +794,7 @@ async function hostGame(){
   if(!G.net||G.busy)return;
   var name=getName();store.set('asa-name',name);
   setBusy(true);toast('Setting up your game…');
-  try{var code=await G.net.host(name,G.tycoon);openRoom(code,true)}catch(e){writeErr(e)}
+  try{var code=await G.net.host(name,G.tycoon,{shares:G.hide.shares,worth:G.hide.worth});openRoom(code,true)}catch(e){writeErr(e)}
   setBusy(false);
 }
 async function joinGame(raw){
@@ -859,6 +885,10 @@ function renderLobby(){
   $('#lobbyCount').textContent=n+' / 6';
   var tc=!(G.meta&&G.meta.tycoon===false);
   $('#lobbyMode').textContent=(tc?'Tycoon payouts: the top 3 shareholders are paid on every merger.':'Classic payouts: the top 2 shareholders are paid on every merger.');
+  var lh=(G.meta&&G.meta.hide)||{};
+  $('#lobbyMode').textContent+=(hideText(lh)?' '+hideText(lh):'');
+  $('#lobbyHide').hidden=!G.isHost;
+  Array.prototype.forEach.call(document.querySelectorAll('#lobbyHide button'),function(b){var k=b.dataset.h;b.setAttribute('aria-pressed',lh[k]?'true':'false');b.textContent=(lh[k]?'On: ':'Off: ')+(k==='shares'?'hide other players\' shares':'hide live net worth')});
   $('#plist').innerHTML=G.lobby.map(function(p){
     var tags=(p.id===hostId?'<span class="badge">host</span>':'')+(p.bot?'<span class="badge">AI</span>':'')+(p.id===G.uid?'<span class="badge">you</span>':'');
     var rm=(G.isHost&&p.bot)?'<button class="btn alt small" data-rm="'+esc(p.id)+'" aria-label="Remove '+esc(p.name)+'">Remove</button>':'';
@@ -880,11 +910,16 @@ async function lobbyAction(a){
     }else if(a==='start'){
       if(G.lobby.length<2){toast('You need at least 2 players.');return}
       var defs=G.lobby.slice(0,6).map(function(p){return {id:p.id,name:p.name,bot:p.bot}});
-      var s=E.newGame(defs,null,{tycoon:!(G.meta&&G.meta.tycoon===false)});s.gid=newId();
+      var s=E.newGame(defs,null,{tycoon:!(G.meta&&G.meta.tycoon===false),hide:(G.meta&&G.meta.hide)||{}});s.gid=newId();
       await G.net.start(G.code,s);
       if(G.net.kind==='mqtt')adoptState(s);
     }
   }catch(e){writeErr(e)}
+}
+async function toggleHide(k){
+  if(!G.isHost||!G.meta)return;
+  var h={shares:!!(G.meta.hide&&G.meta.hide.shares),worth:!!(G.meta.hide&&G.meta.hide.worth)};h[k]=!h[k];
+  try{await G.net.setHide(G.code,h);G.meta.hide=h;renderLobby()}catch(e){writeErr(e)}
 }
 async function removeBot(id){
   if(!G.isHost)return;
@@ -893,13 +928,13 @@ async function removeBot(id){
 async function rematch(){
   if(G.mode==='local'){
     var defsL=G.state.players.map(function(p){return {id:p.id,name:p.name,bot:p.bot}});
-    var sl=E.newGame(defsL,null,{tycoon:G.state.tycoon!==false});sl.gid=newId();
+    var sl=E.newGame(defsL,null,{tycoon:G.state.tycoon!==false,hide:G.state.hide});sl.gid=newId();
     G.viewer=-1;G.meIdx=-1;G.sel=null;G.ui={};G.state=sl;saveSolo();onState();return;
   }
-  if(G.mode==='solo'){G.tycoon=(G.state.tycoon!==false);startSolo(G.soloBots);return}
+  if(G.mode==='solo'){G.tycoon=(G.state.tycoon!==false);if(G.state.hide)G.hide={shares:!!G.state.hide.shares,worth:!!G.state.hide.worth};startSolo(G.soloBots);return}
   if(!G.isHost||!G.state)return;
   var defs=G.state.players.map(function(p){return {id:p.id,name:p.name,bot:p.bot}});
-  var s=E.newGame(defs,null,{tycoon:G.state.tycoon!==false});s.gid=newId();
+  var s=E.newGame(defs,null,{tycoon:G.state.tycoon!==false,hide:G.state.hide});s.gid=newId();
   G.sel=null;G.ui={};
   commit(s);
 }
@@ -1101,7 +1136,9 @@ function renderActions(){
     h='<h3>Play a tile</h3>';
     if(G.sel==null)h+='<p class="muted">Tap a tile below, or one of your tiles on the board.</p>';
     else h+='<p><b class="mono">'+E.tileLabel(G.sel)+'</b> '+effectText(s,G.sel)+'</p><div class="row"><button class="btn" data-a="place">Place '+E.tileLabel(G.sel)+'</button></div>';
-    if(E.endCondition(s)){
+    if(E.endCondition(s)&&(s.hide&&s.hide.worth)){
+      h+='<p class="note" style="margin-top:10px">The game can be ended now.</p><button class="btn alt small" data-a="end" style="margin-top:8px">End the game now</button>';
+    }else if(E.endCondition(s)){
       var pr=E.projected(s),mt=pr[G.meIdx].total,rank=1+pr.filter(function(x,k){return k!==G.meIdx&&x.total>mt}).length;
       h+='<p class="note" style="margin-top:10px">The game can be ended now. If it ended this moment you would finish ranked <b>'+rank+'</b> of '+pr.length+' with <b>'+money(mt)+'</b>.</p><button class="btn alt small" data-a="end" style="margin-top:8px">End the game now</button>';
     }
@@ -1182,9 +1219,11 @@ function renderPlayers(){
     var chips='';
     for(var c=1;c<=7;c++)if(p.stocks[c]>0)chips+=chip(c,p.stocks[c]);
     if(!chips)chips='<span class="muted" style="font-size:12px">no shares</span>';
+    var vi=G.mode==='local'?G.viewer:G.meIdx,hd=s.hide||{};
+    if(hd.shares&&s.phase!=='over'&&i!==vi)chips='<span class="muted" style="font-size:12px">shares hidden</span>';
     var tags=(p.bot?' <span class="badge">AI</span>':'')+(i===G.meIdx?' <span class="badge">you</span>':'');
     var cash=s.phase==='over'?s.over.results[i].total:p.cash;
-    h+='<div class="prow'+(i===a?' turn':'')+'"><div class="av">'+initial(p.name)+'</div><div class="pn">'+esc(p.name)+tags+'</div><div class="pc">'+money(cash)+'</div><div class="chips">'+chips+'</div><div class="pw">'+(s.phase==='over'?'final':'if ended now '+money(pr[i].total))+'</div></div>';
+    h+='<div class="prow'+(i===a?' turn':'')+'"><div class="av">'+initial(p.name)+'</div><div class="pn">'+esc(p.name)+tags+'</div><div class="pc">'+money(cash)+'</div><div class="chips">'+chips+'</div><div class="pw">'+(s.phase==='over'?'final':(hd.worth?'':'if ended now '+money(pr[i].total)))+'</div></div>';
   });
   $('#players').innerHTML=h;
 }

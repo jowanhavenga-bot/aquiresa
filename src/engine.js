@@ -166,7 +166,7 @@
       return { id: d.id, name: d.name, bot: !!d.bot, cash: START_CASH, stocks: [0, 0, 0, 0, 0, 0, 0, 0], hand: [],
         st: { spent: 0, bought: 0, proceeds: 0, mbonus: 0, founded: 0, merges: 0, best: { amt: 0, chain: 0, kind: '', final: false } } };
     });
-    var s = { v: 2, rev: 0, tycoon: !(opts && opts.tycoon === false), hist: [], players: players, board: [], bag: bag, discard: [], turn: 0, phase: 'place', pend: null, log: [], over: null };
+    var s = { v: 2, rev: 0, tycoon: !(opts && opts.tycoon === false), hide: { shares: !!(opts && opts.hide && opts.hide.shares), worth: !!(opts && opts.hide && opts.hide.worth) }, hist: [], players: players, board: [], bag: bag, discard: [], turn: 0, phase: 'place', pend: null, log: [], over: null };
     for (i = 0; i < N; i++) s.board.push(null);
     // draw for first move: each draws a tile, it goes on the board unaligned.
     var draws = players.map(function (p) { var t = s.bag.shift(); s.board[t] = 0; return { p: p, t: t }; });
@@ -466,7 +466,7 @@
         if (trade) parts.push('trades ' + trade + ' for ' + (trade / 2) + ' ' + CHAINS[p.survivor].name);
         var keep = held - sell - trade;
         if (keep) parts.push('keeps ' + keep);
-        addLog(s, pl.name + ' ' + parts.join(', ') + ' (' + CHAINS[c].name + ').');
+        addLog(s, pl.name + (s.hide && s.hide.shares ? ' settles their ' + CHAINS[c].name + ' shares.' : ' ' + parts.join(', ') + ' (' + CHAINS[c].name + ').'));
         p.queue.shift();
         mergeDispose(s);
         break;
@@ -500,7 +500,7 @@
         }
         pl.cash -= cost;
         pl.st.spent += cost; pl.st.bought += total;
-        if (bought.length) addLog(s, pl.name + ' buys ' + bought.join(', ') + ' for ' + money(cost) + '.');
+        if (bought.length) addLog(s, pl.name + (s.hide && s.hide.shares ? ' buys shares.' : ' buys ' + bought.join(', ') + ' for ' + money(cost) + '.'));
         if (a.end) {
           if (!endCondition(s)) return fail('The game cannot end yet.');
           addLog(s, pl.name + ' declares the game over.');
