@@ -214,6 +214,14 @@ details.rules li{margin:5px 0;max-width:70ch}
           <p class="fine" id="hideNote" style="margin:6px 0 0"></p>
         </div>
         <div>
+          <label>Extra rules</label>
+          <div class="stack" style="gap:6px">
+            <button class="seg-toggle" id="hideFounders" aria-pressed="false"></button>
+            <button class="seg-toggle" id="hideOffers" aria-pressed="false"></button>
+          </div>
+          <p class="fine" id="rulesNote" style="margin:6px 0 0"></p>
+        </div>
+        <div>
           <h3>Play solo against the AI</h3>
           <p class="muted" style="margin:4px 0 8px">How many AI opponents?</p>
           <div class="seg" id="botSeg" role="group" aria-label="Number of AI opponents">
@@ -280,6 +288,8 @@ details.rules li{margin:5px 0;max-width:70ch}
           <div class="stack" id="lobbyHide" style="gap:6px;margin-top:8px" hidden>
             <button class="seg-toggle" data-h="shares" aria-pressed="false"></button>
             <button class="seg-toggle" data-h="worth" aria-pressed="false"></button>
+            <button class="seg-toggle" data-h="founders" aria-pressed="false"></button>
+            <button class="seg-toggle" data-h="offers" aria-pressed="false"></button>
           </div>
         </div>
         <div class="row"><button class="btn alt small" id="copyCode">Copy code</button><button class="btn alt small" id="copyLink">Copy invite link</button></div>
@@ -351,7 +361,7 @@ var RULES='<ul>'
 +'<li><b>Ending.</b> Once any company reaches 41 tiles, or every company on the board is safe, the player whose turn it is may end the game. Final bonuses are paid, every share is sold, and the most cash wins.</li>'
 +'</ul>';
 
-var G={mode:null,tycoon:true,hide:{shares:false,worth:false},viewer:-1,passFor:-1,localN:2,localAi:0,code:null,isHost:false,state:null,meIdx:-1,meta:null,lobby:[],sel:null,ui:{},botTimer:null,unsubs:[],db:null,uid:null,
+var G={mode:null,tycoon:true,hide:{shares:false,worth:false,founders:false,offers:false},viewer:-1,passFor:-1,localN:2,localAi:0,code:null,isHost:false,state:null,meIdx:-1,meta:null,lobby:[],sel:null,ui:{},botTimer:null,unsubs:[],db:null,uid:null,
   serverState:null,cells:null,soloBots:3,screen:'home',confirmLeave:false,connTimer:null,stateRef:null,metaRef:null,lobbyRef:null,toastTimer:null};
 
 var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},del:function(k){try{localStorage.removeItem(k)}catch(e){}}};
@@ -386,9 +396,9 @@ function buildHome(){
   $('#rulesHome').innerHTML=RULES;$('#rulesGame').innerHTML=RULES;
   var nm=store.get('asa-name');if(nm)$('#nameInput').value=nm;
   if(store.get('asa-mode')==='classic')G.tycoon=false;
-  try{var hh=JSON.parse(store.get('asa-hide')||'{}');G.hide={shares:!!hh.shares,worth:!!hh.worth}}catch(e){}
+  try{var hh=JSON.parse(store.get('asa-hide')||'{}');G.hide={shares:!!hh.shares,worth:!!hh.worth,founders:!!hh.founders,offers:!!hh.offers}}catch(e){}
   setModeUi();
-  ['Shares','Worth'].forEach(function(k){$('#hide'+k).addEventListener('click',function(){G.hide[k.toLowerCase()]=!G.hide[k.toLowerCase()];store.set('asa-hide',JSON.stringify(G.hide));setModeUi()})});
+  ['Shares','Worth','Founders','Offers'].forEach(function(k){$('#hide'+k).addEventListener('click',function(){G.hide[k.toLowerCase()]=!G.hide[k.toLowerCase()];store.set('asa-hide',JSON.stringify(G.hide));setModeUi()})});
   Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'),function(b){b.addEventListener('click',function(){G.tycoon=(b.dataset.m==='tycoon');store.set('asa-mode',G.tycoon?'tycoon':'classic');setModeUi()})});
   var saved=store.get('asa-solo');
   if(saved){try{var o=JSON.parse(saved);if(o&&o.state&&o.state.phase!=='over')$('#resumeBtn').hidden=false}catch(e){}}
@@ -421,20 +431,27 @@ function buildHome(){
   $('#board').addEventListener('click',function(e){var c=e.target.closest('.cell');if(!c)return;var t=+c.dataset.t;trySelect(t)});
   $('#hand').addEventListener('click',function(e){var b=e.target.closest('[data-t]');if(!b||b.disabled)return;trySelect(+b.dataset.t)});
   $('#actions').addEventListener('click',function(e){var b=e.target.closest('[data-a]');if(!b||b.disabled)return;handleAction(b.dataset.a)});
+  $('#actions').addEventListener('change',function(e){var t=e.target.closest('[data-o]');if(!t||!G.ui.offer||!G.state)return;G.ui.offer[t.dataset.o]=+t.value;if(t.dataset.o==='chain'){G.ui.offer.qty=1}offerDefaults(G.state,G.ui.offer);renderActions()});
   $('#lobbyBtns').addEventListener('click',function(e){var b=e.target.closest('[data-l]');if(!b||b.disabled)return;lobbyAction(b.dataset.l)});
   $('#lobbyHide').addEventListener('click',function(e){var b=e.target.closest('[data-h]');if(b)toggleHide(b.dataset.h)});
   $('#plist').addEventListener('click',function(e){var b=e.target.closest('[data-rm]');if(!b)return;removeBot(b.dataset.rm)});
   var cells='';for(var t=0;t<108;t++)cells+='<div class="cell" data-t="'+t+'"></div>';
   $('#board').innerHTML=cells;G.cells=Array.prototype.slice.call($('#board').children);
 }
+var OPT_LABEL={shares:'hide other players\' shares',worth:'hide live net worth',founders:'founder\'s bonus (R1\u00a0000 when your company is swallowed)',offers:'share offers between players'};
 function hideText(h){
   var a=[];if(h&&h.shares)a.push('other players\' shares are hidden');if(h&&h.worth)a.push('live net worth is hidden');
-  return a.length?'Secret mode: '+a.join(' and ')+'. Everything is revealed when the game ends.':'';
+  var t=a.length?'Secret mode: '+a.join(' and ')+'. Everything is revealed when the game ends.':'';
+  var r=[];if(h&&h.founders)r.push('founder\'s bonus');if(h&&h.offers)r.push('share offers');
+  return t+(r.length?(t?' ':'')+'Extra rules on: '+r.join(' and ')+'.':'');
 }
 function setModeUi(){
   $('#hideShares').setAttribute('aria-pressed',G.hide.shares?'true':'false');$('#hideWorth').setAttribute('aria-pressed',G.hide.worth?'true':'false');
   $('#hideShares').textContent=(G.hide.shares?'On: ':'Off: ')+'hide other players\' shares';$('#hideWorth').textContent=(G.hide.worth?'On: ':'Off: ')+'hide live net worth';
-  $('#hideNote').textContent=hideText(G.hide)||'Off by default. Your own shares and cash always stay visible to you.';
+  $('#hideFounders').setAttribute('aria-pressed',G.hide.founders?'true':'false');$('#hideOffers').setAttribute('aria-pressed',G.hide.offers?'true':'false');
+  $('#hideFounders').textContent=(G.hide.founders?'On: ':'Off: ')+OPT_LABEL.founders;$('#hideOffers').textContent=(G.hide.offers?'On: ':'Off: ')+OPT_LABEL.offers;
+  $('#rulesNote').textContent='Founder\'s bonus: whoever founded a company gets R1\u00a0000 when it is swallowed in a merger. Share offers: on your turn, offer another player cash for some of their shares.';
+  $('#hideNote').textContent=(G.hide.shares||G.hide.worth)?hideText({shares:G.hide.shares,worth:G.hide.worth}):'Off by default. Your own shares and cash always stay visible to you.';
   Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'),function(b){b.setAttribute('aria-pressed',(b.dataset.m==='tycoon')===G.tycoon?'true':'false')});
   $('#modeNote').textContent=G.tycoon?'The top 3 shareholders are paid on every merger and at the end: 10x, 5x and 3x the share price.':'The top 2 shareholders are paid on every merger and at the end: 10x and 5x the share price.';
 }
@@ -498,7 +515,7 @@ function startLocal(){
   var used=[],defs=[];
   names.forEach(function(nm,k){var u=nm,j=2;while(used.indexOf(u.toLowerCase())>=0)u=nm+' '+(j++);used.push(u.toLowerCase());defs.push({id:'h'+k,name:u,bot:false})});
   shuffled(BOT_NAMES).filter(function(x){return used.indexOf(x.toLowerCase())<0}).slice(0,ai).forEach(function(b,k){defs.push({id:'bot'+k,name:b,bot:true})});
-  var s=E.newGame(defs,null,{tycoon:G.tycoon,hide:G.hide});s.gid=newId();
+  var s=E.newGame(defs,null,{tycoon:G.tycoon,hide:G.hide,rules:G.hide});s.gid=newId();
   G.mode='local';G.state=s;G.viewer=-1;G.meIdx=-1;G.sel=null;G.ui={};
   saveSolo();showScreen('game');onState();
 }
@@ -544,7 +561,7 @@ function confirmPass(){
 function startSolo(nBots){
   var name=getName();store.set('asa-name',name);
   var defs=[{id:'you',name:name,bot:false}].concat(shuffled(BOT_NAMES.filter(function(x){return x.toLowerCase()!==name.toLowerCase()})).slice(0,nBots).map(function(n,i){return {id:'bot'+i,name:n,bot:true}}));
-  var s=E.newGame(defs,null,{tycoon:G.tycoon,hide:G.hide});s.gid=newId();
+  var s=E.newGame(defs,null,{tycoon:G.tycoon,hide:G.hide,rules:G.hide});s.gid=newId();
   G.mode='solo';G.state=s;G.meIdx=s.players.findIndex(function(p){return p.id==='you'});G.soloBots=nBots;G.sel=null;G.ui={};
   saveSolo();showScreen('game');onState();
 }
@@ -558,7 +575,7 @@ function resumeSolo(){
 var CODE_CHARS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 var WEB_URL='https://jowanhavenga-bot.github.io/aquiresa/';
 var BROKERS={E:'wss://broker.emqx.io:8084/mqtt',H:'wss://broker.hivemq.com:8884/mqtt'};
-var ACT_TYPES=['place','found','pickSurvivor','pickOrder','dispose','declareEnd','buy'];
+var ACT_TYPES=['offer','respond','cancelOffer','place','found','pickSurvivor','pickOrder','dispose','declareEnd','buy'];
 function randChars(n){var s='';for(var i=0;i<n;i++)s+=CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)];return s}
 function normCode(raw){return String(raw||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'')}
 function userErr(msg){var e=new Error(msg);e.user=true;return e}
@@ -794,7 +811,7 @@ async function hostGame(){
   if(!G.net||G.busy)return;
   var name=getName();store.set('asa-name',name);
   setBusy(true);toast('Setting up your game…');
-  try{var code=await G.net.host(name,G.tycoon,{shares:G.hide.shares,worth:G.hide.worth});openRoom(code,true)}catch(e){writeErr(e)}
+  try{var code=await G.net.host(name,G.tycoon,{shares:G.hide.shares,worth:G.hide.worth,founders:G.hide.founders,offers:G.hide.offers});openRoom(code,true)}catch(e){writeErr(e)}
   setBusy(false);
 }
 async function joinGame(raw){
@@ -888,7 +905,7 @@ function renderLobby(){
   var lh=(G.meta&&G.meta.hide)||{};
   $('#lobbyMode').textContent+=(hideText(lh)?' '+hideText(lh):'');
   $('#lobbyHide').hidden=!G.isHost;
-  Array.prototype.forEach.call(document.querySelectorAll('#lobbyHide button'),function(b){var k=b.dataset.h;b.setAttribute('aria-pressed',lh[k]?'true':'false');b.textContent=(lh[k]?'On: ':'Off: ')+(k==='shares'?'hide other players\' shares':'hide live net worth')});
+  Array.prototype.forEach.call(document.querySelectorAll('#lobbyHide button'),function(b){var k=b.dataset.h;b.setAttribute('aria-pressed',lh[k]?'true':'false');b.textContent=(lh[k]?'On: ':'Off: ')+OPT_LABEL[k]});
   $('#plist').innerHTML=G.lobby.map(function(p){
     var tags=(p.id===hostId?'<span class="badge">host</span>':'')+(p.bot?'<span class="badge">AI</span>':'')+(p.id===G.uid?'<span class="badge">you</span>':'');
     var rm=(G.isHost&&p.bot)?'<button class="btn alt small" data-rm="'+esc(p.id)+'" aria-label="Remove '+esc(p.name)+'">Remove</button>':'';
@@ -910,7 +927,7 @@ async function lobbyAction(a){
     }else if(a==='start'){
       if(G.lobby.length<2){toast('You need at least 2 players.');return}
       var defs=G.lobby.slice(0,6).map(function(p){return {id:p.id,name:p.name,bot:p.bot}});
-      var s=E.newGame(defs,null,{tycoon:!(G.meta&&G.meta.tycoon===false),hide:(G.meta&&G.meta.hide)||{}});s.gid=newId();
+      var s=E.newGame(defs,null,{tycoon:!(G.meta&&G.meta.tycoon===false),hide:(G.meta&&G.meta.hide)||{},rules:(G.meta&&G.meta.hide)||{}});s.gid=newId();
       await G.net.start(G.code,s);
       if(G.net.kind==='mqtt')adoptState(s);
     }
@@ -918,7 +935,7 @@ async function lobbyAction(a){
 }
 async function toggleHide(k){
   if(!G.isHost||!G.meta)return;
-  var h={shares:!!(G.meta.hide&&G.meta.hide.shares),worth:!!(G.meta.hide&&G.meta.hide.worth)};h[k]=!h[k];
+  var h={},o=G.meta.hide||{};['shares','worth','founders','offers'].forEach(function(x){h[x]=!!o[x]});h[k]=!h[k];
   try{await G.net.setHide(G.code,h);G.meta.hide=h;renderLobby()}catch(e){writeErr(e)}
 }
 async function removeBot(id){
@@ -928,13 +945,13 @@ async function removeBot(id){
 async function rematch(){
   if(G.mode==='local'){
     var defsL=G.state.players.map(function(p){return {id:p.id,name:p.name,bot:p.bot}});
-    var sl=E.newGame(defsL,null,{tycoon:G.state.tycoon!==false,hide:G.state.hide});sl.gid=newId();
+    var sl=E.newGame(defsL,null,{tycoon:G.state.tycoon!==false,hide:G.state.hide,rules:G.state.rules});sl.gid=newId();
     G.viewer=-1;G.meIdx=-1;G.sel=null;G.ui={};G.state=sl;saveSolo();onState();return;
   }
-  if(G.mode==='solo'){G.tycoon=(G.state.tycoon!==false);if(G.state.hide)G.hide={shares:!!G.state.hide.shares,worth:!!G.state.hide.worth};startSolo(G.soloBots);return}
+  if(G.mode==='solo'){G.tycoon=(G.state.tycoon!==false);G.hide={shares:!!(G.state.hide&&G.state.hide.shares),worth:!!(G.state.hide&&G.state.hide.worth),founders:!!(G.state.rules&&G.state.rules.founders),offers:!!(G.state.rules&&G.state.rules.offers)};startSolo(G.soloBots);return}
   if(!G.isHost||!G.state)return;
   var defs=G.state.players.map(function(p){return {id:p.id,name:p.name,bot:p.bot}});
-  var s=E.newGame(defs,null,{tycoon:G.state.tycoon!==false,hide:G.state.hide});s.gid=newId();
+  var s=E.newGame(defs,null,{tycoon:G.state.tycoon!==false,hide:G.state.hide,rules:G.state.rules});s.gid=newId();
   G.sel=null;G.ui={};
   commit(s);
 }
@@ -1043,6 +1060,19 @@ function handleAction(a){
       else{var buys={};for(c=1;c<=7;c++)if(b[c])buys[c]=b[c];G.ui.buy=null;humanAct({type:'buy',buys:buys,end:k==='bend'});return}
       renderActions();return;
     }
+    case 'oform':{
+      var sz0=E.sizes(s.board),c0=0,ci;for(ci=1;ci<=7;ci++)if(sz0[ci]>=2){c0=ci;break}
+      var to0=-1;s.players.forEach(function(p,i){if(to0<0&&i!==G.meIdx)to0=i});
+      if(!c0||to0<0)return;
+      G.ui.offer={to:to0,chain:c0,qty:1,amt:0};offerDefaults(s,G.ui.offer);renderActions();return;
+    }
+    case 'oclose':G.ui.offer=null;renderActions();return;
+    case 'oqm':case 'oqp':{var o1=G.ui.offer;if(!o1)return;o1.qty+=(k==='oqp'?1:-1);offerDefaults(s,o1);renderActions();return}
+    case 'oam':{var o2=G.ui.offer;if(!o2||!me)return;o2.amt=Math.max(o2.min,Math.min(Math.floor(me.cash/100)*100,o2.amt+(+arg)));renderActions();return}
+    case 'osend':{var o3=G.ui.offer;if(!o3)return;G.ui.offer=null;humanAct({type:'offer',to:o3.to,chain:o3.chain,qty:o3.qty,amt:o3.amt});return}
+    case 'oyes':humanAct({type:'respond',accept:true});return;
+    case 'ono':humanAct({type:'respond',accept:false});return;
+    case 'ocancel':humanAct({type:'cancelOffer'});return;
     case 'rematch':rematch();break;
     case 'home':leaveToHome();break;
     case 'tobot':{if(G.isHost&&G.mode==='multi'){var r=E.apply(s,{type:'toBot',index:+arg},-1);if(r.ok)commit(r.state)}break}
@@ -1052,6 +1082,7 @@ function handleAction(a){
 /* ---------- rendering ---------- */
 function phaseText(s){
   var a=E.actorOf(s),nm=a>=0?esc(s.players[a].name):'';
+  if(s.offer)return nm+' is answering a share offer from '+esc(s.players[s.offer.from].name);
   switch(s.phase){
     case 'place':return nm+' to play a tile';
     case 'found':return nm+' is founding a company';
@@ -1123,10 +1154,12 @@ function renderActions(){
   var s=G.state,el=$('#actions'),a=E.actorOf(s),me=G.meIdx>=0?s.players[G.meIdx]:null,mine=(a===G.meIdx&&a>=0),h='';
   if(s.phase==='over'){el.innerHTML=overHtml(s);return}
   if(G.meIdx<0&&G.mode!=='local'){el.innerHTML='<h3>Watching</h3><p class="muted">You joined after this game started, so you can follow along but not play.</p>';return}
+  if(s.offer&&mine){el.innerHTML=offerAnswerHtml(s);return}
   if(!mine){
     var who=s.players[a],bot=who.bot;
     h='<h3>'+(bot?'<span class="think"></span>':'')+esc(who.name)+(bot?' (AI)':'')+'</h3><p class="muted">'+phaseText(s)+'.</p>';
     if(s.phase==='dispose'||s.phase==='mergePick'||s.phase==='mergeOrder')h+=mergeInfo(s);
+    if(s.offer&&s.offer.from===G.meIdx)h+='<p class="note">Your offer: '+money(s.offer.amt)+' for '+s.offer.qty+' '+esc(CH[s.offer.chain].name)+' share'+(s.offer.qty>1?'s':'')+'.</p><button class="btn alt small" data-a="ocancel">Withdraw the offer</button>';
     if(G.mode==='multi'&&G.isHost&&!bot)h+='<p class="muted" style="font-size:13px">Player gone quiet?</p><button class="btn alt small" data-a="tobot:'+a+'">Let the AI play for '+esc(who.name)+'</button>';
     el.innerHTML=h;return;
   }
@@ -1180,7 +1213,36 @@ function renderActions(){
     if(E.endCondition(s))h+='<button class="btn alt" data-a="bend">'+(tot?'Buy and end game':'End game')+'</button>';
     h+='</div>';
   }
+  if(s.rules&&s.rules.offers&&(s.phase==='place'||s.phase==='buy'))h+=offerFormHtml(s,me);
   el.innerHTML=h;
+}
+function offerAnswerHtml(s){
+  var o=s.offer,from=s.players[o.from],me=s.players[o.to],sz=E.sizes(s.board),mkt=E.price(o.chain,sz[o.chain]||2)*o.qty;
+  var h='<h3>Offer from '+esc(from.name)+'</h3><p><b>'+esc(from.name)+'</b> offers <b>'+money(o.amt)+'</b> for <b>'+o.qty+'</b> '+chainSw(o.chain)+' <b>'+esc(CH[o.chain].name)+'</b> share'+(o.qty>1?'s':'')+'. At the share price that is worth '+money(mkt)+', so you would gain '+money(o.amt-mkt)+'.</p><p class="muted">You hold '+me.stocks[o.chain]+' '+esc(CH[o.chain].name)+'. Selling shares can cost you a majority bonus.</p><div class="row"><button class="btn" data-a="oyes"'+(me.stocks[o.chain]<o.qty?' disabled':'')+'>Accept</button><button class="btn alt" data-a="ono">Decline</button></div>';
+  return h;
+}
+function offerFormHtml(s,me){
+  var o=G.ui.offer,sz=E.sizes(s.board),ch=[],c;
+  for(c=1;c<=7;c++)if(sz[c]>=2)ch.push(c);
+  if(!ch.length||s.oc>=3)return '';
+  if(!o)return '<div class="row" style="margin-top:12px"><button class="btn alt small" data-a="oform">Make a share offer</button></div>';
+  var others=[];s.players.forEach(function(p,i){if(i!==G.meIdx)others.push(i)});
+  var tp=s.players[o.to],worth=E.price(o.chain,sz[o.chain])*o.qty;
+  var h='<div class="panel" style="margin-top:12px;padding:12px"><h3 style="margin-bottom:8px">Offer cash for shares</h3><div class="stack" style="gap:8px"><label>Ask<select data-o="to" style="margin-left:8px">';
+  others.forEach(function(i){h+='<option value="'+i+'"'+(i===o.to?' selected':'')+'>'+esc(s.players[i].name)+'</option>'});
+  h+='</select></label><label>Company<select data-o="chain" style="margin-left:8px">';
+  ch.forEach(function(c2){h+='<option value="'+c2+'"'+(c2===o.chain?' selected':'')+'>'+esc(CH[c2].name)+'</option>'});
+  h+='</select></label>';
+  if(!(s.hide&&s.hide.shares))h+='<p class="muted" style="margin:0">'+esc(tp.name)+' holds '+tp.stocks[o.chain]+' '+esc(CH[o.chain].name)+'.</p>';
+  h+='<div class="stepper"><button data-a="oqm" aria-label="Fewer shares"'+(o.qty<=1?' disabled':'')+'>&minus;</button><span class="n">'+o.qty+'</span><button data-a="oqp" aria-label="More shares"'+(o.qty>=E.SHARES?' disabled':'')+'>+</button><span class="muted" style="margin-left:8px">share'+(o.qty>1?'s':'')+'</span></div>';
+  h+='<div class="row"><button class="btn alt small" data-a="oam:-1000">&minus;1000</button><button class="btn alt small" data-a="oam:-100">&minus;100</button><b class="mono">'+money(o.amt)+'</b><button class="btn alt small" data-a="oam:100">+100</button><button class="btn alt small" data-a="oam:1000">+1000</button></div>';
+  h+='<p class="muted" style="margin:0">Market value '+money(worth)+'. Offer more than that. You have '+money(me.cash)+'.</p>';
+  h+='<div class="row"><button class="btn" data-a="osend"'+(o.amt>me.cash?' disabled':'')+'>Send offer</button><button class="btn alt" data-a="oclose">Close</button></div></div></div>';
+  return h;
+}
+function offerDefaults(s,o){
+  var sz=E.sizes(s.board);o.qty=Math.max(1,Math.min(E.SHARES,o.qty));
+  o.min=E.price(o.chain,sz[o.chain])*o.qty+100;if(!(o.amt>=o.min)||o.touched!==o.chain+':'+o.qty)o.amt=o.min;o.touched=o.chain+':'+o.qty;
 }
 function mergeInfo(s){
   var p=s.pend;if(!p||p.kind!=='merge')return '';

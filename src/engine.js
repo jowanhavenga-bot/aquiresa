@@ -147,6 +147,7 @@
   function actorOf(s) {
     if (s.phase === 'dispose' && s.pend) return s.pend.queue[0];
     if (s.phase === 'over') return -1;
+    if (s.offer) return s.offer.to;
     return s.turn;
   }
 
@@ -166,7 +167,7 @@
       return { id: d.id, name: d.name, bot: !!d.bot, cash: START_CASH, stocks: [0, 0, 0, 0, 0, 0, 0, 0], hand: [],
         st: { spent: 0, bought: 0, proceeds: 0, mbonus: 0, founded: 0, merges: 0, best: { amt: 0, chain: 0, kind: '', final: false } } };
     });
-    var s = { v: 2, rev: 0, tycoon: !(opts && opts.tycoon === false), hide: { shares: !!(opts && opts.hide && opts.hide.shares), worth: !!(opts && opts.hide && opts.hide.worth) }, hist: [], players: players, board: [], bag: bag, discard: [], turn: 0, phase: 'place', pend: null, log: [], over: null };
+    var s = { v: 2, rev: 0, tycoon: !(opts && opts.tycoon === false), hide: { shares: !!(opts && opts.hide && opts.hide.shares), worth: !!(opts && opts.hide && opts.hide.worth) }, rules: { founders: !!(opts && opts.rules && opts.rules.founders), offers: !!(opts && opts.rules && opts.rules.offers) }, founder: {}, oc: 0, offer: null, hist: [], players: players, board: [], bag: bag, discard: [], turn: 0, phase: 'place', pend: null, log: [], over: null };
     for (i = 0; i < N; i++) s.board.push(null);
     // draw for first move: each draws a tile, it goes on the board unaligned.
     var draws = players.map(function (p) { var t = s.bag.shift(); s.board[t] = 0; return { p: p, t: t }; });
@@ -192,6 +193,7 @@
   function beginTurn(s) {
     if (s.over) return;
     var pl = s.players[s.turn], replaced = 0;
+    s.oc = 0;
     for (;;) {
       var idx = -1;
       for (var k = 0; k < pl.hand.length; k++) if (analyze(s.board, pl.hand[k]).kind === 'dead') { idx = k; break; }
@@ -254,6 +256,12 @@
     p.price = price(c, p.sz[c]);
     var pays = computeBonuses(s, c, p.price);
     if (!pays.length) addLog(s, 'Nobody holds ' + CHAINS[c].name + ' shares, so no bonuses.');
+    if (s.rules && s.rules.founders && s.founder && s.founder[c] != null && s.players[s.founder[c]]) {
+      var fo = s.players[s.founder[c]];
+      fo.cash += 1000; fo.st.mbonus += 1000;
+      addLog(s, fo.name + ' gets a R\u00a01\u00a0000 founder\'s bonus for ' + CHAINS[c].name + '.');
+      delete s.founder[c];
+    }
     pays.forEach(function (b) {
       var st = s.players[b.i].st;
       s.players[b.i].cash += b.amt;
@@ -395,7 +403,48 @@
       s.rev++;
       return { ok: true, state: s };
     }
-    if (by !== actor) return fail('It is not your turn.');
+    if (a.type === 'cancelOffer') {
+      if (!s.offer || by !== s.offer.from) return fail('There is no offer to cancel.');
+      addLog(s, s.players[s.offer.from].name + ' withdraws the offer to ' + s.players[s.offer.to].name + '.');
+      s.offer = null; s.rev++;
+      return { ok: true, state: s };
+    }
+    if (by !== actor) return fail(s.offer ? 'Answer the offer first.' : 'It is not your turn.');
+    if (a.type === 'offer') {
+      if (!(s.rules && s.rules.offers)) return fail('Share offers are switched off.');
+      if (s.offer || (s.phase !== 'place' && s.phase !== 'buy')) return fail('You cannot make an offer now.');
+      if (s.oc >= 3) return fail('You can make up to 3 offers per turn.');
+      var tp = s.players[a.to], oc = a.chain, oq = a.qty | 0, oa = +a.amt;
+      if (!tp || a.to === actor) return fail('Pick another player.');
+      if (!(oc >= 1 && oc <= 7) || sizes(s.board)[oc] < 2) return fail('That company is not on the board.');
+      if (oq < 1 || oq > SHARES) return fail('Pick a number of shares.');
+      var worth = price(oc, sizes(s.board)[oc]) * oq;
+      if (!(oa >= worth + 100) || oa % 100 !== 0) return fail('Offer more than the market value of ' + money(worth) + '.');
+      if (oa > s.players[actor].cash) return fail('You do not have that much cash.');
+      s.oc++;
+      if (tp.stocks[oc] < oq) {
+        if (s.hide && s.hide.shares) { addLog(s, s.players[actor].name + ' offers ' + tp.name + ' a deal for ' + CHAINS[oc].name + ' shares. Declined.'); s.rev++; return { ok: true, state: s }; }
+        return fail(tp.name + ' does not have that many ' + CHAINS[oc].name + ' shares.');
+      }
+      s.offer = { from: actor, to: a.to, chain: oc, qty: oq, amt: oa };
+      addLog(s, s.players[actor].name + ' offers ' + tp.name + ' ' + money(oa) + ' for ' + oq + ' ' + CHAINS[oc].name + ' share' + (oq > 1 ? 's' : '') + '.');
+      s.rev++;
+      return { ok: true, state: s };
+    }
+    if (a.type === 'respond') {
+      if (!s.offer) return fail('No offer to answer.');
+      var of = s.offer, buyer = s.players[of.from], seller = s.players[of.to];
+      s.offer = null;
+      if (a.accept && seller.stocks[of.chain] >= of.qty && buyer.cash >= of.amt && sizes(s.board)[of.chain] >= 2) {
+        seller.stocks[of.chain] -= of.qty; buyer.stocks[of.chain] += of.qty;
+        seller.cash += of.amt; buyer.cash -= of.amt;
+        addLog(s, seller.name + ' accepts and sells ' + of.qty + ' ' + CHAINS[of.chain].name + ' share' + (of.qty > 1 ? 's' : '') + ' to ' + buyer.name + ' for ' + money(of.amt) + '.');
+      } else {
+        addLog(s, seller.name + ' declines the offer from ' + buyer.name + '.');
+      }
+      s.rev++;
+      return { ok: true, state: s };
+    }
     pl = s.players[actor];
 
     switch (a.type) {
@@ -433,6 +482,7 @@
         pl.st.founded++;
         var free = bankLeft(s, cid) > 0;
         if (free) pl.stocks[cid]++;
+        s.founder[cid] = actor;
         addLog(s, pl.name + ' founds ' + CHAINS[cid].name + ' (' + n + ' tiles)' + (free ? ' and gets a free share.' : ', but no shares are left for the founder bonus.'));
         s.pend = null; s.phase = 'buy';
         break;
@@ -550,6 +600,10 @@
   function botAction(s, rng) {
     rng = rng || Math.random;
     var i = actorOf(s), me = s.players[i], sz = sizes(s.board), k;
+    if (s.offer) {
+      var of = s.offer, worthB = price(of.chain, sz[of.chain] || 2) * of.qty;
+      return { type: 'respond', accept: of.amt >= worthB * (1.25 + rng() * 0.4) && me.stocks[of.chain] >= of.qty };
+    }
     switch (s.phase) {
       case 'place': {
         if (endCondition(s) && leader(s, i)) return { type: 'declareEnd' };
