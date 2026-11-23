@@ -1750,7 +1750,7 @@ function handleAction(a){
     case 'oclose':G.ui.offer=null;renderActions();return;
     case 'oqm':case 'oqp':{var o1=G.ui.offer;if(!o1)return;o1.qty+=(k==='oqp'?1:-1);offerDefaults(s,o1);renderActions();return}
     case 'oam':{var o2=G.ui.offer;if(!o2||!me)return;o2.amt=Math.max(o2.min,Math.min(Math.floor(me.cash/100)*100,o2.amt+(+arg)));renderActions();return}
-    case 'osend':{var o3=G.ui.offer;if(!o3)return;G.ui.offer=null;humanAct({type:'offer',to:o3.to,chain:o3.chain,qty:o3.qty,amt:o3.amt});return}
+    case 'osend':{var o3=G.ui.offer;if(!o3)return;if(offerMax(s,o3)<1||o3.qty>offerMax(s,o3)){toast('That player does not have that many shares.');return}G.ui.offer=null;humanAct({type:'offer',to:o3.to,chain:o3.chain,qty:o3.qty,amt:o3.amt});return}
     case 'oyes':humanAct({type:'respond',accept:true});return;
     case 'ono':humanAct({type:'respond',accept:false});return;
     case 'ocancel':humanAct({type:'cancelOffer'});return;
@@ -1907,6 +1907,7 @@ function offerFormHtml(s,me){
   for(c=1;c<=7;c++)if(sz[c]>=2)ch.push(c);
   if(!ch.length||s.oc>=3)return '';
   if(!o)return '<div class="row" style="margin-top:12px"><button class="btn alt small" data-a="oform">Make a share offer</button></div>';
+  offerDefaults(s,o);
   var others=[];s.players.forEach(function(p,i){if(i!==G.meIdx)others.push(i)});
   var tp=s.players[o.to],worth=E.price(o.chain,sz[o.chain])*o.qty;
   var h='<div class="panel" style="margin-top:12px;padding:12px"><h3 style="margin-bottom:8px">Offer cash for shares</h3><div class="stack" style="gap:8px"><label>Ask<select data-o="to" style="margin-left:8px">';
@@ -1915,14 +1916,16 @@ function offerFormHtml(s,me){
   ch.forEach(function(c2){h+='<option value="'+c2+'"'+(c2===o.chain?' selected':'')+'>'+esc(CH[c2].name)+'</option>'});
   h+='</select></label>';
   if(!(s.hide&&s.hide.shares))h+='<p class="muted" style="margin:0">'+esc(tp.name)+' holds '+tp.stocks[o.chain]+' '+esc(CH[o.chain].name)+'.</p>';
-  h+='<div class="stepper"><button data-a="oqm" aria-label="Fewer shares"'+(o.qty<=1?' disabled':'')+'>&minus;</button><span class="n">'+o.qty+'</span><button data-a="oqp" aria-label="More shares"'+(o.qty>=E.SHARES?' disabled':'')+'>+</button><span class="muted" style="margin-left:8px">share'+(o.qty>1?'s':'')+'</span></div>';
+  h+='<div class="stepper"><button data-a="oqm" aria-label="Fewer shares"'+(o.qty<=1?' disabled':'')+'>&minus;</button><span class="n">'+o.qty+'</span><button data-a="oqp" aria-label="More shares"'+(o.qty>=Math.max(1,offerMax(s,o))?' disabled':'')+'>+</button><span class="muted" style="margin-left:8px">share'+(o.qty>1?'s':'')+'</span></div>';
   h+='<div class="row"><button class="btn alt small" data-a="oam:-1000">&minus;1000</button><button class="btn alt small" data-a="oam:-100">&minus;100</button><b class="mono">'+money(o.amt)+'</b><button class="btn alt small" data-a="oam:100">+100</button><button class="btn alt small" data-a="oam:1000">+1000</button></div>';
+  if(offerMax(s,o)<1)h+='<p class="note" style="margin:0">'+esc(tp.name)+' has no '+esc(CH[o.chain].name)+' shares to sell.</p>';
   h+='<p class="muted" style="margin:0">Market value '+money(worth)+'. Offer more than that. You have '+money(me.cash)+'.</p>';
-  h+='<div class="row"><button class="btn" data-a="osend"'+(o.amt>me.cash?' disabled':'')+'>Send offer</button><button class="btn alt" data-a="oclose">Close</button></div></div></div>';
+  h+='<div class="row"><button class="btn" data-a="osend"'+(o.amt>me.cash||offerMax(s,o)<1?' disabled':'')+'>Send offer</button><button class="btn alt" data-a="oclose">Close</button></div></div></div>';
   return h;
 }
+function offerMax(s,o){return (s.hide&&s.hide.shares)?E.SHARES:s.players[o.to].stocks[o.chain]}
 function offerDefaults(s,o){
-  var sz=E.sizes(s.board);o.qty=Math.max(1,Math.min(E.SHARES,o.qty));
+  var sz=E.sizes(s.board);o.qty=Math.max(1,Math.min(Math.max(1,offerMax(s,o)),o.qty));
   o.min=E.price(o.chain,sz[o.chain])*o.qty+100;if(!(o.amt>=o.min)||o.touched!==o.chain+':'+o.qty)o.amt=o.min;o.touched=o.chain+':'+o.qty;
 }
 function mergeInfo(s){
