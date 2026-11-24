@@ -315,7 +315,7 @@ details.rules li{margin:5px 0;max-width:70ch}
     <section id="records" class="rec" hidden>
       <div class="panel">
         <div class="row" style="justify-content:space-between"><h2 style="margin:0">Records</h2><button class="btn alt small" id="recBack">Back</button></div>
-        <p class="fine" style="margin:6px 0 0">One shared board for everyone, by player name. A name only updates when a new result beats the old one, and records can't be cleared. AI players and the default name "Player" are not listed.</p>
+        <p class="fine" style="margin:6px 0 0">One shared board for everyone, by player name. Only games with two or more people count: online games and pass and play. Solo games against the AI never go on the board. A name only updates when a new result beats the old one, and records can't be cleared. AI players and the default name "Player" are not listed.</p>
         <p class="note" id="recStatus" style="margin:8px 0 0"></p>
         <div id="recBody"></div>
       </div>
@@ -631,7 +631,7 @@ function resumeSolo(){
 
 
 /* ---------- records (shared by everyone on the web version) ---------- */
-var REC_KEY='asa-rec2',REC_T='acquire-sa/v1/records/',RC={clients:[],seen:{},busy:false,timer:null,pub:null};
+var REC_KEY='asa-rec3',REC_T='acquire-sa/v2/records/',REC_OLD='acquire-sa/v1/records/',RC={clients:[],seen:{},legacy:[],busy:false,timer:null,pub:null};
 function recKey(n){return String(n).trim().toLowerCase().slice(0,14)}
 function recTopic(n){var k=recKey(n),h='';for(var i=0;i<k.length;i++)h+=k.charCodeAt(i).toString(16);return REC_T+h}
 function recNum(x,max){return (typeof x==='number'&&isFinite(x)&&x>=0&&x<=max)?Math.round(x):null}
@@ -665,10 +665,12 @@ function recMergeEntry(a,b){
 function recLoad(){
   try{var o=JSON.parse(store.get(REC_KEY)||'null');if(o&&o.v===2&&o.p&&typeof o.p==='object')return o}catch(e){}
   var n={v:2,p:{}};
+  store.del('asa-rec2');
   try{
     var old=JSON.parse(store.get('asa-records')||'null');
     if(old&&Array.isArray(old.games))old.games.forEach(function(g,i){
-      var e=recClean({n:g.n,t:{v:g.t,np:g.np,r:g.r,w:g.w,d:g.d},m:g.w&&g.m>0?{v:g.m,t:g.t,d:g.d}:null,p:g.p>0?{v:g.p,c:g.pc,d:g.d}:null,cb:g.cb?{g:g.cb.gain,df:g.cb.deficit,f:g.cb.from,to:g.cb.to,rd:g.cb.round,d:g.d}:null,ws:g.w?['o'+i]:[],gs:['o'+i]});
+      if(g.md!=='local'&&g.md!=='multi')return;
+      var e=recClean({n:g.n,t:{v:g.t,np:g.np,r:g.r,w:g.w,d:g.d},m:g.w&&g.m>0?{v:g.m,t:g.t,d:g.d}:null,p:g.p>0?{v:g.p,c:g.pc,d:g.d}:null,cb:g.cb?{g:g.cb.gain,df:g.cb.deficit,f:g.cb.from,to:g.cb.to,rd:g.cb.round,d:g.d}:null,ws:g.w?['o'+(g.d||i).toString(36)]:[],gs:['o'+(g.d||i).toString(36)]});
       if(e)recAdd(n,e);
     });
   }catch(e){}
@@ -678,8 +680,10 @@ function recAdd(o,e){var k=recKey(e.n);if(!o.p[k]){o.p[k]=e;return true}return r
 function recSave(o){store.set(REC_KEY,JSON.stringify(o))}
 function recordGame(s){
   if(!s||s.phase!=='over'||!s.hist||s.hist.length<2||!s.gid)return;
+  if(G.mode!=='multi'&&G.mode!=='local')return;
   var o=recLoad(),pp,changed=false,now=Date.now();
   try{pp=E.perPlayer(s)}catch(e){return}
+  if(pp.filter(function(p){return !p.bot}).length<2)return;
   pp.forEach(function(p){
     if(p.bot||p.name==='Player')return;
     var k=recKey(p.name),cur=o.p[k];
@@ -726,18 +730,23 @@ function recPublishDiff(){
 async function recSync(keepOpen){
   if(!window.mqtt||!window.mqtt.connect){if(keepOpen)recStatus('local');return}
   if(RC.busy){if(keepOpen)RC.keep=true;return}
-  RC.busy=true;RC.keep=!!keepOpen;RC.clients=[];RC.seen={};
+  RC.busy=true;RC.keep=!!keepOpen;RC.clients=[];RC.seen={};RC.legacy=[];
   if(keepOpen)recStatus('connecting');
   await Promise.all(['E','H'].map(function(L){
     return recConnect(L).then(function(c){
       RC.clients.push({L:L,c:c});
-      c.on('message',function(t,p){recIncoming(L,t,p)});
-      return new Promise(function(r){c.subscribe(REC_T+'+',{qos:1},function(){r()})});
+      c.on('message',function(t,p){if(t.indexOf(REC_OLD)===0){RC.legacy.push({L:L,t:t});return}recIncoming(L,t,p)});
+      var legacy=!store.get('asa-rec-clean3');
+      return new Promise(function(r){c.subscribe(legacy?[REC_T+'+',REC_OLD+'+']:REC_T+'+',{qos:1},function(){r()})});
     },function(){});
   }));
   if(!RC.clients.length){RC.busy=false;if(G.screen==='records')recStatus('offline');return}
   if(G.screen==='records')recStatus('live');
   await delay(2200);
+  if(!store.get('asa-rec-clean3')){
+    RC.legacy.forEach(function(x){RC.clients.forEach(function(cl){if(cl.L===x.L){try{cl.c.publish(x.t,'',{qos:1,retain:true})}catch(e){}}})});
+    store.set('asa-rec-clean3','1');
+  }
   recPublishDiff();
   await delay(700);
   if(RC.keep&&G.screen==='records'){RC.busy=false;RC.holding=true;return}
@@ -757,7 +766,7 @@ function recDate(d){try{return d?new Date(d).toLocaleDateString():''}catch(e){re
 function renderRecords(){
   var o=recLoad(),es=Object.keys(o.p).map(function(k){return o.p[k]}),h='';
   var pick=function(f,sc){return es.filter(function(e){return e[f]}).map(function(e){return {e:e,v:sc(e[f])}}).sort(function(a,b){return b.v-a.v})};
-  if(!es.length){$('#recBody').innerHTML='<p class="muted">No finished games yet. Finish a game under your own name and the records start here.</p>';return}
+  if(!es.length){$('#recBody').innerHTML='<p class="muted">No finished games yet. Play online or pass and play with friends under your own name and the records start here.</p>';return}
   h+='<h3>Top 20: most money at the end</h3>'+recList(pick('t',function(z){return z.v}),20,function(it){var z=it.e.t;return {val:esc(E.money(z.v)),sub:(z.w?'Won':ordN(z.r))+' in a '+z.np+'-player game &middot; '+recDate(z.d)}});
   h+='<h3>Best wins</h3><p class="fine" style="margin:0 0 4px">Biggest winning margin over second place.</p>'+recList(pick('m',function(z){return z.v}),10,function(it){var z=it.e.m;return {val:'+'+esc(E.money(z.v)),sub:'Finished with '+esc(E.money(z.t))+' &middot; '+recDate(z.d)}});
   h+='<h3>Biggest payout</h3><p class="fine" style="margin:0 0 4px">Largest single bonus from a merger or the end of the game.</p>'+recList(pick('p',function(z){return z.v}),10,function(it){var z=it.e.p,c=z.c&&CH[z.c]?esc(CH[z.c].name)+' &middot; ':'';return {val:esc(E.money(z.v)),sub:c+recDate(z.d)}});
