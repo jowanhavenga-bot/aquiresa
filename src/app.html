@@ -196,6 +196,69 @@ details.rules li{margin:5px 0;max-width:70ch}
 .mini-cap{font-size:12px;color:var(--muted);margin:6px 0 0}
 .tour-tbl{border-collapse:collapse;margin:8px 0}
 .tour-tbl td{padding:4px 12px 4px 0;white-space:nowrap}
+
+.btn{box-shadow:0 1px 0 rgba(0,0,0,.28)}
+.btn.alt{background:var(--surface2)}
+.btn:not(:disabled):hover{filter:brightness(1.08)}.btn:not(:disabled):active{transform:translateY(1px)}
+.seg button:hover{border-color:var(--ink)}
+.seg button[aria-pressed=true]::before{content:"\2713\00a0"}
+.opt{display:flex;align-items:center;gap:12px;width:100%;min-height:58px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);text-align:left;font-weight:400;color:var(--ink)}
+.opt:hover{border-color:var(--ink)}
+.opt .ot,.optrow .ot{flex:1;min-width:0}
+.opt .ot b,.optrow .ot b{display:block;font-weight:600;font-size:15px}
+.opt .ot small,.optrow .ot small{display:block;color:var(--muted);font-size:12.5px;line-height:1.3;margin-top:2px}
+.opt .sv{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;flex:none;min-width:22px;text-align:right}
+.opt[aria-pressed=true] .sv{color:var(--good)}
+.opt .sw2{flex:none;position:relative;width:46px;height:26px;border-radius:13px;background:var(--line);transition:background .15s}
+.opt .sw2::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4);transition:transform .15s}
+.opt[aria-pressed=true] .sw2{background:var(--good)}
+.opt[aria-pressed=true] .sw2::after{transform:translateX(20px)}
+.optrow{display:flex;align-items:center;gap:12px;min-height:58px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface2)}
+.stepper{display:flex;align-items:center;gap:6px;flex:none}
+.stepper button{width:44px;height:44px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:22px;font-weight:700;line-height:1;box-shadow:0 1px 0 rgba(0,0,0,.28)}
+.stepper button:hover:not(:disabled){border-color:var(--ink)}
+.stepper button:disabled{opacity:.4;cursor:not-allowed}
+.stepper output{min-width:74px;text-align:center;font-family:var(--mono);font-weight:700;font-size:15px}
+.setup{display:grid;gap:14px}
+.setup-top{display:grid;gap:14px;grid-template-columns:1fr}
+.groups{display:grid;gap:12px;grid-template-columns:1fr}
+.grp{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0;background:var(--surface)}
+.grp h3{font-size:15px;display:flex;align-items:center;gap:8px}
+.grp .seg{margin-bottom:2px}
+.grp .sub{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:4px 0 0}
+.modes{display:grid;gap:12px;grid-template-columns:1fr}
+.modes .panel{margin-top:0}
+.home>.panel{margin-top:0}
+.mode h3{font-size:18px}
+.mode .go{margin-top:auto}
+@media (min-width:700px){.setup-top{grid-template-columns:1fr 1fr}.groups{grid-template-columns:1fr 1fr}}
+@media (min-width:1000px){.modes{grid-template-columns:1fr 1fr 1fr}}
+#lobbyHide{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface)}
+#lobbyHide[hidden]{display:none}
+/* tour scenes */
+.stage{min-height:230px;display:flex;flex-direction:column;justify-content:center;gap:8px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:14px;margin:6px 0 8px}
+.stage .mini{max-width:300px;margin:0 auto}
+.stage .mini b{aspect-ratio:1;border-radius:4px}
+.stage .mini b.n{animation:tpop .55s ease-out}
+.stage .mini b.f{animation:tfade .6s ease-out}
+.chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;min-height:30px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600;animation:tup .45s ease-out both}
+.chip:nth-child(2){animation-delay:.12s}.chip:nth-child(3){animation-delay:.24s}
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:34px 1fr auto;gap:8px;align-items:center;font-size:13px}
+.bar span{color:var(--muted);font-family:var(--mono)}
+.bar i{display:block;height:18px;border-radius:5px;background:var(--btn);width:var(--w);animation:tgrow .7s ease-out both}
+.bar b{font-family:var(--mono)}
+.tcap{margin:2px 0 0;text-align:center;font-weight:600;min-height:2.8em}
+.tstep{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.fdots{display:flex;gap:6px;justify-content:center;margin:2px 0 6px}
+.fdots button{width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:var(--surface2);font-size:12px;font-family:var(--mono);padding:0;font-weight:700}
+.fdots button[aria-pressed=true]{background:var(--btn);color:var(--btnink);border-color:var(--btn)}
+@keyframes tpop{0%{transform:scale(.3);opacity:0}70%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
+@keyframes tfade{from{opacity:.2}to{opacity:1}}
+@keyframes tup{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+@keyframes tgrow{from{width:0}to{width:var(--w)}}
+@media (prefers-reduced-motion:reduce){.stage *,.chip,.bar i{animation:none!important}.opt .sw2,.opt .sw2::after{transition:none}}
 </style>
 
 <div class="shell">
@@ -219,108 +282,110 @@ details.rules li{margin:5px 0;max-width:70ch}
     <section id="home" class="home">
       <div class="hero wide">
         <h1>Build it. Merge it. Own it.</h1>
-        <p><button class="btn alt small" id="tourBtn">New to Acquire? Take the 60-second tour</button></p>
+        <p><button class="btn" id="tourBtn">New to Acquire? Take the 60-second tour</button></p>
         <p>A tile-laying takeover game for 2 to 6 players. Found South African companies, grow them, hold the biggest stakes when they merge, and finish with the most cash.</p>
       </div>
-      <div class="panel stack">
-        <div>
-          <label for="nameInput">Your name</label>
-          <input type="text" id="nameInput" maxlength="14" autocomplete="nickname" placeholder="Player">
+      <div class="panel wide setup">
+        <div class="setup-top">
+          <div>
+            <label for="nameInput">Your name</label>
+            <input type="text" id="nameInput" maxlength="14" autocomplete="nickname" placeholder="Player">
+          </div>
+          <div>
+            <label id="modeLbl">Bonus payouts</label>
+            <div class="seg wide" id="modeSeg" role="group" aria-labelledby="modeLbl">
+              <button data-m="tycoon" aria-pressed="true">Tycoon</button><button data-m="classic" aria-pressed="false">Classic</button>
+            </div>
+            <p class="fine" id="modeNote" style="margin:6px 0 0"></p>
+          </div>
         </div>
-        <div>
-          <label id="modeLbl">Bonus payouts</label>
-          <div class="seg wide" id="modeSeg" role="group" aria-labelledby="modeLbl">
-            <button data-m="tycoon" aria-pressed="true">Tycoon</button><button data-m="classic" aria-pressed="false">Classic</button>
-          </div>
-          <p class="fine" id="modeNote" style="margin:6px 0 0"></p>
+        <div class="groups">
+          <section class="grp">
+            <h3>Extra rules</h3>
+            <button type="button" class="opt" id="hideFounders" aria-pressed="false"></button>
+            <button type="button" class="opt" id="hideOffers" aria-pressed="false"></button>
+            <div class="optrow">
+              <div class="ot"><b>Turn timer</b><small>Online games. The game plays for a player who runs out of time.</small></div>
+              <div class="stepper" id="timerStep" role="group" aria-label="Turn timer"><button type="button" data-d="-1" aria-label="Shorter turn timer">&minus;</button><output id="timerVal" aria-live="polite">Off</output><button type="button" data-d="1" aria-label="Longer turn timer">+</button></div>
+            </div>
+          </section>
+          <section class="grp">
+            <h3>Secret mode</h3>
+            <button type="button" class="opt" id="hideShares" aria-pressed="false"></button>
+            <button type="button" class="opt" id="hideWorth" aria-pressed="false"></button>
+            <p class="fine" id="hideNote" style="margin:0"></p>
+          </section>
+          <section class="grp">
+            <h3>AI opponents</h3>
+            <p class="sub">Level</p>
+            <div class="seg" id="lvlSeg" role="group" aria-label="AI level">
+              <button data-v="easy" aria-pressed="false">Easy</button><button data-v="normal" aria-pressed="true">Normal</button><button data-v="hard" aria-pressed="false">Hard</button>
+            </div>
+            <p class="sub">Style</p>
+            <div class="seg wrap" id="persSeg" role="group" aria-label="AI style">
+              <button data-v="mixed" aria-pressed="true">Mixed</button><button data-v="balanced" aria-pressed="false">Balanced</button><button data-v="cautious" aria-pressed="false">Cautious</button><button data-v="ruthless" aria-pressed="false">Ruthless</button><button data-v="chaotic" aria-pressed="false">Chaotic</button>
+            </div>
+            <p class="fine" id="aiNote" style="margin:0"></p>
+          </section>
+          <section class="grp">
+            <h3>Just for you</h3>
+            <button type="button" class="opt" id="prefSound" aria-pressed="true"></button>
+            <button type="button" class="opt" id="prefPreview" aria-pressed="false"></button>
+            <p class="fine" style="margin:0">These only change things for you and never change the rules for others.</p>
+          </section>
         </div>
-        <div>
-          <label>Secret mode</label>
-          <div class="stack" style="gap:6px">
-            <button class="seg-toggle" id="hideShares" aria-pressed="false">Hide other players' shares</button>
-            <button class="seg-toggle" id="hideWorth" aria-pressed="false">Hide live net worth</button>
-          </div>
-          <p class="fine" id="hideNote" style="margin:6px 0 0"></p>
-        </div>
-        <div>
-          <label>Extra rules</label>
-          <div class="stack" style="gap:6px">
-            <button class="seg-toggle" id="hideFounders" aria-pressed="false"></button>
-            <button class="seg-toggle" id="hideOffers" aria-pressed="false"></button>
-          </div>
-          <p class="muted" style="margin:10px 0 6px">Turn timer (online games)</p>
-          <div class="seg wrap" id="timerSeg" role="group" aria-label="Turn timer">
-            <button data-v="0" aria-pressed="true">Off</button><button data-v="30" aria-pressed="false">30 s</button><button data-v="60" aria-pressed="false">60 s</button><button data-v="90" aria-pressed="false">90 s</button><button data-v="120" aria-pressed="false">2 min</button>
-          </div>
-          <p class="fine" id="rulesNote" style="margin:6px 0 0"></p>
-        </div>
-        <div>
-          <label>AI opponents</label>
-          <p class="muted" style="margin:0 0 6px">Level</p>
-          <div class="seg" id="lvlSeg" role="group" aria-label="AI level">
-            <button data-v="easy" aria-pressed="false">Easy</button><button data-v="normal" aria-pressed="true">Normal</button><button data-v="hard" aria-pressed="false">Hard</button>
-          </div>
-          <p class="muted" style="margin:10px 0 6px">Style</p>
-          <div class="seg wrap" id="persSeg" role="group" aria-label="AI style">
-            <button data-v="mixed" aria-pressed="true">Mixed</button><button data-v="balanced" aria-pressed="false">Balanced</button><button data-v="cautious" aria-pressed="false">Cautious</button><button data-v="ruthless" aria-pressed="false">Ruthless</button><button data-v="chaotic" aria-pressed="false">Chaotic</button>
-          </div>
-          <p class="fine" id="aiNote" style="margin:6px 0 0"></p>
-        </div>
-        <div>
-          <label>Your preferences</label>
-          <div class="stack" style="gap:6px">
-            <button class="seg-toggle" id="prefSound" aria-pressed="true"></button>
-            <button class="seg-toggle" id="prefPreview" aria-pressed="false"></button>
-          </div>
-          <p class="fine" style="margin:6px 0 0">These are just for you and never change the rules for others.</p>
-        </div>
-        <div>
+      </div>
+
+      <div class="modes wide">
+        <div class="panel stack mode">
           <h3>Play solo against the AI</h3>
-          <p class="muted" style="margin:4px 0 8px">How many AI opponents?</p>
-          <div class="seg" id="botSeg" role="group" aria-label="Number of AI opponents">
-            <button data-n="1" aria-pressed="false">1</button><button data-n="2" aria-pressed="false">2</button>
-            <button data-n="3" aria-pressed="true">3</button><button data-n="4" aria-pressed="false">4</button><button data-n="5" aria-pressed="false">5</button>
+          <div>
+            <p class="sub" style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">How many AI opponents?</p>
+            <div class="seg" id="botSeg" role="group" aria-label="Number of AI opponents">
+              <button data-n="1" aria-pressed="false">1</button><button data-n="2" aria-pressed="false">2</button>
+              <button data-n="3" aria-pressed="true">3</button><button data-n="4" aria-pressed="false">4</button><button data-n="5" aria-pressed="false">5</button>
+            </div>
+          </div>
+          <div class="row go">
+            <button class="btn" id="soloBtn">Start solo game</button>
+            <button class="btn alt" id="resumeBtn" hidden>Resume solo game</button>
           </div>
         </div>
-        <div class="row">
-          <button class="btn" id="soloBtn">Start solo game</button>
-          <button class="btn alt" id="resumeBtn" hidden>Resume solo game</button>
-        </div>
-      </div>
-      <div class="panel stack">
-        <h3>Play with friends</h3>
-        <div id="mpNote" class="note" hidden></div>
-        <div class="row"><button class="btn" id="hostBtn">Host a game</button></div>
-        <div>
-          <label for="codeInput">Have a code?</label>
-          <div class="row" style="flex-wrap:nowrap">
-            <input type="text" id="codeInput" maxlength="6" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABCDE" style="text-transform:uppercase;font-family:var(--mono);letter-spacing:.1em">
-            <button class="btn alt" id="joinBtn" style="flex:none">Join</button>
+        <div class="panel stack mode">
+          <h3>Play online with friends</h3>
+          <div id="mpNote" class="note" hidden></div>
+          <div class="row"><button class="btn" id="hostBtn">Host a game</button></div>
+          <div>
+            <label for="codeInput">Have a code?</label>
+            <div class="row" style="flex-wrap:nowrap">
+              <input type="text" id="codeInput" maxlength="6" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABCDE" style="text-transform:uppercase;font-family:var(--mono);letter-spacing:.1em">
+              <button class="btn alt" id="joinBtn" style="flex:none">Join</button>
+            </div>
           </div>
+          <button class="btn alt" id="rejoinBtn" hidden>Rejoin last game</button>
+          <p class="fine" id="mpFine"></p>
         </div>
-        <button class="btn alt" id="rejoinBtn" hidden>Rejoin last game</button>
-        <p class="fine" id="mpFine"></p>
-      </div>
-      <div class="panel wide stack" id="localPanel">
-        <div>
-          <h3>Pass and play</h3>
-          <p class="muted" style="margin:4px 0 0;max-width:62ch">One phone, everyone takes a turn. A cover screen hides each player's tiles while the phone changes hands.</p>
-        </div>
-        <div>
-          <p class="muted" style="margin:0 0 6px">How many players?</p>
-          <div class="seg" id="localSeg" role="group" aria-label="Number of players">
-            <button data-n="2" aria-pressed="true">2</button><button data-n="3" aria-pressed="false">3</button><button data-n="4" aria-pressed="false">4</button><button data-n="5" aria-pressed="false">5</button><button data-n="6" aria-pressed="false">6</button>
+        <div class="panel stack mode" id="localPanel">
+          <div>
+            <h3>Pass and play</h3>
+            <p class="muted" style="margin:4px 0 0">One phone, everyone takes a turn. A cover screen hides each player's tiles while the phone changes hands.</p>
           </div>
-        </div>
-        <div class="namegrid" id="localNames"></div>
-        <div>
-          <p class="muted" style="margin:0 0 6px">Add AI players (optional)</p>
-          <div class="seg" id="localAiSeg" role="group" aria-label="Number of AI players">
-            <button data-n="0" aria-pressed="true">0</button><button data-n="1" aria-pressed="false">1</button><button data-n="2" aria-pressed="false">2</button><button data-n="3" aria-pressed="false">3</button><button data-n="4" aria-pressed="false">4</button>
+          <div>
+            <p class="muted" style="margin:0 0 6px">How many players?</p>
+            <div class="seg" id="localSeg" role="group" aria-label="Number of players">
+              <button data-n="2" aria-pressed="true">2</button><button data-n="3" aria-pressed="false">3</button><button data-n="4" aria-pressed="false">4</button><button data-n="5" aria-pressed="false">5</button><button data-n="6" aria-pressed="false">6</button>
+            </div>
           </div>
+          <div class="namegrid" id="localNames"></div>
+          <div>
+            <p class="muted" style="margin:0 0 6px">Add AI players (optional)</p>
+            <div class="seg" id="localAiSeg" role="group" aria-label="Number of AI players">
+              <button data-n="0" aria-pressed="true">0</button><button data-n="1" aria-pressed="false">1</button><button data-n="2" aria-pressed="false">2</button><button data-n="3" aria-pressed="false">3</button><button data-n="4" aria-pressed="false">4</button>
+            </div>
+          </div>
+          <div class="row go"><button class="btn" id="localBtn">Start pass and play</button><button class="btn alt" id="resumeLocalBtn" hidden>Resume pass and play</button></div>
+          <p class="fine">Uses the bonus payout setting above.</p>
         </div>
-        <div class="row"><button class="btn" id="localBtn">Start pass and play</button><button class="btn alt" id="resumeLocalBtn" hidden>Resume pass and play</button></div>
-        <p class="fine">Uses the bonus payout setting above.</p>
       </div>
       <div class="panel wide row" style="justify-content:space-between">
         <div><h3 style="margin:0">Records</h3><p class="muted" style="margin:2px 0 0">Best wins, payouts, comebacks and the top 20.</p></div>
@@ -352,12 +417,16 @@ details.rules li{margin:5px 0;max-width:70ch}
           <div class="code" id="lobbyCode"></div>
           <p class="muted" style="margin:4px 0 0;font-size:14px">Friends open this page, type the code under Join and they are in. Keep this page open while you host.</p>
           <p class="note" id="lobbyMode" style="margin:8px 0 0"></p>
-          <div class="stack" id="lobbyHide" style="gap:6px;margin-top:8px" hidden>
-            <button class="seg-toggle" data-h="shares" aria-pressed="false"></button>
-            <button class="seg-toggle" data-h="worth" aria-pressed="false"></button>
-            <button class="seg-toggle" data-h="founders" aria-pressed="false"></button>
-            <button class="seg-toggle" data-h="offers" aria-pressed="false"></button>
-            <div class="seg wrap" id="lobbyTimer" role="group" aria-label="Turn timer"><button data-tv="0" aria-pressed="false">Timer off</button><button data-tv="30" aria-pressed="false">30 s</button><button data-tv="60" aria-pressed="false">60 s</button><button data-tv="90" aria-pressed="false">90 s</button><button data-tv="120" aria-pressed="false">2 min</button></div>
+          <div class="stack" id="lobbyHide" style="gap:8px;margin-top:10px" hidden>
+            <h3>Game settings <span class="muted" style="font-weight:400;font-size:13px">(host only)</span></h3>
+            <button type="button" class="opt" data-h="shares" aria-pressed="false"></button>
+            <button type="button" class="opt" data-h="worth" aria-pressed="false"></button>
+            <button type="button" class="opt" data-h="founders" aria-pressed="false"></button>
+            <button type="button" class="opt" data-h="offers" aria-pressed="false"></button>
+            <div class="optrow">
+              <div class="ot"><b>Turn timer</b><small>The game plays for a player who runs out of time.</small></div>
+              <div class="stepper" id="lobbyTimerStep" role="group" aria-label="Turn timer"><button type="button" data-d="-1" aria-label="Shorter turn timer">&minus;</button><output id="lobbyTimerVal" aria-live="polite">Off</output><button type="button" data-d="1" aria-label="Longer turn timer">+</button></div>
+            </div>
           </div>
         </div>
         <div class="row"><button class="btn alt small" id="copyCode">Copy code</button><button class="btn alt small" id="copyLink">Copy invite link</button></div>
@@ -467,7 +536,7 @@ function buildHome(){
   $('#rulesHome').innerHTML=RULES;$('#rulesGame').innerHTML=RULES;
   var nm=store.get('asa-name');if(nm)$('#nameInput').value=nm;
   if(store.get('asa-mode')==='classic')G.tycoon=false;
-  try{var hh=JSON.parse(store.get('asa-hide')||'{}');G.hide={shares:!!hh.shares,worth:!!hh.worth,founders:!!hh.founders,offers:!!hh.offers,timer:[0,30,60,90,120].indexOf(+hh.timer)>=0?+hh.timer:0}}catch(e){}
+  try{var hh=JSON.parse(store.get('asa-hide')||'{}');G.hide={shares:!!hh.shares,worth:!!hh.worth,founders:!!hh.founders,offers:!!hh.offers,timer:(+hh.timer>=0&&+hh.timer<=300)?(+hh.timer|0):0}}catch(e){}
   try{var pf=JSON.parse(store.get('asa-prefs')||'{}');G.prefs={sound:pf.sound!==false,preview:!!pf.preview}}catch(e){}
   try{var ai=JSON.parse(store.get('asa-ai')||'{}');if(['easy','normal','hard'].indexOf(ai.lvl)>=0)G.ai.lvl=ai.lvl;if(['mixed'].concat(PERS_LIST).indexOf(ai.pers)>=0)G.ai.pers=ai.pers}catch(e){}
   ['Sound','Preview'].forEach(function(k){$('#pref'+k).addEventListener('click',function(){G.prefs[k.toLowerCase()]=!G.prefs[k.toLowerCase()];store.set('asa-prefs',JSON.stringify(G.prefs));setModeUi();if(k==='Sound'&&G.prefs.sound)sfxKaching(false)})});
@@ -511,18 +580,36 @@ function buildHome(){
   $('#actions').addEventListener('click',function(e){var b=e.target.closest('[data-a]');if(!b||b.disabled)return;handleAction(b.dataset.a)});
   $('#actions').addEventListener('change',function(e){var t=e.target.closest('[data-o]');if(!t||!G.ui.offer||!G.state)return;G.ui.offer[t.dataset.o]=+t.value;if(t.dataset.o==='chain'){G.ui.offer.qty=1}offerDefaults(G.state,G.ui.offer);renderActions()});
   $('#lobbyBtns').addEventListener('click',function(e){var b=e.target.closest('[data-l]');if(!b||b.disabled)return;lobbyAction(b.dataset.l)});
-  $('#lobbyHide').addEventListener('click',function(e){var t=e.target.closest('[data-tv]');if(t){setLobbyTimer(+t.dataset.tv);return}var b=e.target.closest('[data-h]');if(b)toggleHide(b.dataset.h)});
-  Array.prototype.forEach.call(document.querySelectorAll('#timerSeg button'),function(b){b.addEventListener('click',function(){G.hide.timer=+b.dataset.v;store.set('asa-hide',JSON.stringify(G.hide));setModeUi()})});
+  $('#lobbyHide').addEventListener('click',function(e){var t=e.target.closest('[data-d]');if(t){if(t.disabled)return;var lh0=(G.meta&&G.meta.hide)||{};setLobbyTimer(timerStepV(+lh0.timer|0,+t.dataset.d));return}var b=e.target.closest('[data-h]');if(b)toggleHide(b.dataset.h)});
+  $('#timerStep').addEventListener('click',function(e){var t=e.target.closest('[data-d]');if(!t||t.disabled)return;G.hide.timer=timerStepV(G.hide.timer|0,+t.dataset.d);store.set('asa-hide',JSON.stringify(G.hide));setModeUi()});
   $('#tourBtn').addEventListener('click',tourOpen);$('#menuTour').addEventListener('click',function(){$('#menu').hidden=true;tourOpen()});
   $('#tourNext').addEventListener('click',function(){if(TOUR.i>=tourSlides().length-1)tourClose();else{TOUR.i++;tourRender()}});
   $('#tourBack').addEventListener('click',function(){if(TOUR.i>0){TOUR.i--;tourRender()}});
   $('#tourSkip').addEventListener('click',tourClose);
+  $('#tourBody').addEventListener('click',function(e){var b=e.target.closest('[data-fr]');if(!b)return;tourStop();tourShow(+b.dataset.fr)});
   $('#tour').addEventListener('click',function(e){if(e.target.id==='tour')tourClose()});
   $('#plist').addEventListener('click',function(e){var b=e.target.closest('[data-rm]');if(!b)return;removeBot(b.dataset.rm)});
   var cells='';for(var t=0;t<108;t++)cells+='<div class="cell" data-t="'+t+'"></div>';
   $('#board').innerHTML=cells;G.cells=Array.prototype.slice.call($('#board').children);
 }
-var OPT_LABEL={shares:'hide other players\' shares',worth:'hide live net worth',founders:'founder\'s bonus (3 times the share price when your company is swallowed, like a third-place bonus)',offers:'share offers between players'};
+var OPT_TXT={
+  shares:['Hide other players\' shares','Nobody can see how many shares the others hold until the game ends.'],
+  worth:['Hide live net worth','The running "if the game ended now" totals stay hidden.'],
+  founders:['Founder\'s bonus','Whoever founded a company gets 3 times its share price when it is swallowed.'],
+  offers:['Share offers','On your turn, offer another player cash for some of their shares.'],
+  sound:['Sound and vibration','A "ka-ching" and a buzz when you get a payout.'],
+  preview:['Payout preview','See what a merger tile would pay you before you place it.']};
+function optFill(el,k,on){
+  var t=OPT_TXT[k];
+  el.setAttribute('aria-pressed',on?'true':'false');
+  el.innerHTML='<span class="ot"><b>'+t[0]+'</b><small>'+t[1]+'</small></span><span class="sv">'+(on?'On':'Off')+'</span><span class="sw2" aria-hidden="true"></span>';
+}
+function timerStepV(v,d){v=v|0;if(d>0)return v<=0?30:Math.min(300,v+15);return v<=30?0:v-15}
+function fmtTimer(v){v=v|0;if(!v)return 'Off';if(v<60)return v+' s';var m=Math.floor(v/60),r=v%60;return m+' min'+(r?' '+r+' s':'')}
+function stepUi(wrap,out,v){
+  v=v|0;$(out).textContent=fmtTimer(v);
+  var bs=$(wrap).querySelectorAll('button');bs[0].disabled=v<=0;bs[1].disabled=v>=300;
+}
 function hideText(h){
   var a=[];if(h&&h.shares)a.push('other players\' shares are hidden');if(h&&h.worth)a.push('live net worth is hidden');
   var t=a.length?'Secret mode: '+a.join(' and ')+'. Everything is revealed when the game ends.':'';
@@ -530,18 +617,14 @@ function hideText(h){
   return t+(r.length?(t?' ':'')+'Extra rules on: '+r.join(' and ')+'.':'');
 }
 function setModeUi(){
-  $('#prefSound').setAttribute('aria-pressed',G.prefs.sound?'true':'false');$('#prefSound').textContent=(G.prefs.sound?'On: ':'Off: ')+'sound and vibration on payouts';
-  $('#prefPreview').setAttribute('aria-pressed',G.prefs.preview?'true':'false');$('#prefPreview').textContent=(G.prefs.preview?'On: ':'Off: ')+'payout preview before you place a tile';
+  optFill($('#prefSound'),'sound',!!G.prefs.sound);optFill($('#prefPreview'),'preview',!!G.prefs.preview);
   ['lvl','pers'].forEach(function(k){Array.prototype.forEach.call(document.querySelectorAll('#'+k+'Seg button'),function(b){b.setAttribute('aria-pressed',b.dataset.v===G.ai[k]?'true':'false')})});
   var LN={easy:'Easy: plays carelessly, buys little.',normal:'Normal: a solid all-rounder.',hard:'Hard: sharp tile choices and smarter buying.'};
   var PN={mixed:'Mixed gives each AI a different style.',balanced:'Balanced: plays it straight.',cautious:'Cautious: keeps cash back and sells in mergers.',ruthless:'Ruthless: chases mergers and majorities.',chaotic:'Chaotic: wild buyer, hard to read.'};
-  $('#aiNote').textContent=LN[G.ai.lvl]+' '+PN[G.ai.pers]
-  $('#hideShares').setAttribute('aria-pressed',G.hide.shares?'true':'false');$('#hideWorth').setAttribute('aria-pressed',G.hide.worth?'true':'false');
-  $('#hideShares').textContent=(G.hide.shares?'On: ':'Off: ')+'hide other players\' shares';$('#hideWorth').textContent=(G.hide.worth?'On: ':'Off: ')+'hide live net worth';
-  Array.prototype.forEach.call(document.querySelectorAll('#timerSeg button'),function(b){b.setAttribute('aria-pressed',(+b.dataset.v)===(G.hide.timer|0)?'true':'false')});
-  $('#hideFounders').setAttribute('aria-pressed',G.hide.founders?'true':'false');$('#hideOffers').setAttribute('aria-pressed',G.hide.offers?'true':'false');
-  $('#hideFounders').textContent=(G.hide.founders?'On: ':'Off: ')+OPT_LABEL.founders;$('#hideOffers').textContent=(G.hide.offers?'On: ':'Off: ')+OPT_LABEL.offers;
-  $('#rulesNote').textContent='Founder\'s bonus: whoever founded a company gets 3 times the share price when it is swallowed in a merger, the same as a third-place bonus. Share offers: on your turn, offer another player cash for some of their shares.';
+  $('#aiNote').textContent=LN[G.ai.lvl]+' '+PN[G.ai.pers];
+  optFill($('#hideShares'),'shares',!!G.hide.shares);optFill($('#hideWorth'),'worth',!!G.hide.worth);
+  optFill($('#hideFounders'),'founders',!!G.hide.founders);optFill($('#hideOffers'),'offers',!!G.hide.offers);
+  stepUi('#timerStep','#timerVal',G.hide.timer);
   $('#hideNote').textContent=(G.hide.shares||G.hide.worth)?hideText({shares:G.hide.shares,worth:G.hide.worth}):'Off by default. Your own shares and cash always stay visible to you.';
   Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'),function(b){b.setAttribute('aria-pressed',(b.dataset.m==='tycoon')===G.tycoon?'true':'false')});
   $('#modeNote').textContent=G.tycoon?'The top 3 shareholders are paid on every merger and at the end: 10x, 5x and 3x the share price.':'The top 2 shareholders are paid on every merger and at the end: 10x and 5x the share price.';
@@ -904,26 +987,78 @@ function miniGrid(rows){
   return h+'</div>';
 }
 function tourSlides(){
+  function C(a){return a}
   return [
-    {t:'The goal',h:'<p>Finish with the <b>most money</b>. You earn it three ways:</p><ul><li>Buy <b>shares</b> in companies while they are still cheap.</li><li>Collect <b>bonuses</b> when companies merge.</li><li>Sell your shares at the end.</li></ul><p class="muted">Seven South African companies share one board. You never own a company, only shares in it.</p>'},
-    {t:'Your turn',h:'<ol><li><b>Place one tile</b> from your hand on the board.</li><li><b>Buy up to 3 shares</b> in any company on the board.</li><li>You draw a new tile and the next player goes.</li></ol>'+miniGrid(['.....','.t*..','.....'])+'<p class="mini-cap">A tile on its own just sits there.</p>'},
-    {t:'Founding and growing',h:'<p>Place a tile <b>next to another lone tile</b> and you found a company. You pick which one and get a <b>free share</b>.</p>'+miniGrid(['.t*.'])+'<p class="mini-cap">Two tiles touch</p>'+miniGrid(['.33.'])+'<p class="mini-cap">A company is born. Tiles added next to it make it grow, and a bigger company means pricier shares.</p>'},
-    {t:'Mergers: where the money is',h:'<p>A tile that joins two companies makes them <b>merge</b>. The bigger one survives and swallows the smaller one.</p>'+miniGrid(['333*66'])+'<p class="mini-cap">Before</p>'+miniGrid(['3333333'])+'<p class="mini-cap">After: the bigger company wins</p><p>After every merger the game adds a short note saying exactly what happened and who got paid.</p>'},
-    {t:'Who gets paid',h:'<p>When a company is swallowed, its <b>biggest shareholders get a bonus</b>. With a R600 share, tycoon mode pays:</p><table class="tour-tbl"><tr><td>1st most shares</td><td><b>R6 000</b></td><td class="muted">10 &times; price</td></tr><tr><td>2nd</td><td><b>R3 000</b></td><td class="muted">5 &times;</td></tr><tr><td>3rd</td><td><b>R1 800</b></td><td class="muted">3 &times;</td></tr></table><p>Then everyone holding that company <b>sells</b> at the share price, <b>trades</b> 2 for 1 into the survivor, or <b>keeps</b> them. That is why buying early pays.</p>'},
-    {t:'Safe companies and the end',h:'<ul><li>A company with <b>11 or more tiles is safe</b>. It cannot be swallowed.</li><li>When a company reaches <b>41 tiles</b>, or every company on the board is safe, whoever is playing may <b>end the game</b>.</li><li>Final bonuses are paid, every share is sold, and the <b>most cash wins</b>.</li></ul>'},
-    {t:'Extra rules the host can switch on',h:'<ul><li><b>Founder\'s bonus.</b> Whoever founded a company gets 3 times the share price when it is swallowed, the same as a third-place bonus.</li><li><b>Share offers.</b> On your turn, offer another player cash, above the market price, for some of their shares. They accept or decline.</li><li><b>Secret mode.</b> Hide other players\' shares and the live net worth.</li><li><b>Turn timer.</b> The game plays for you when your time runs out. Use the Nudge button to poke a slow friend.</li><li><b>Payout preview</b> (your own setting). Shows what a merger tile would pay you before you place it.</li></ul><p class="muted">You can reopen this tour any time from the home screen or the menu.</p>'}
+    {t:'The goal',h:'<p class="muted">Seven South African companies share one board. You never own a company, only shares in it. Finish with the <b>most cash</b>.</p>',
+     f:[{g:['..3..','.333.','..3..'],c:['Buy shares early'],cap:'Buy shares in a company while it is small and cheap.'},
+        {g:['3333.66','3333.66'],c:['Merger bonus'],cap:'Collect big bonuses when companies merge.'},
+        {c:['Sell everything','Most cash wins'],cap:'At the end every share is sold. The most cash wins.'}]},
+    {t:'Your turn',h:'<p class="muted">Three quick steps, then the next player goes.</p>',
+     f:[{g:['.....','.t*..','.....'],cap:'1. Place one tile from your hand on the board.'},
+        {g:['.....','.tt..','.....'],c:['Up to 3 shares'],cap:'2. Buy up to 3 shares in any company on the board.'},
+        {c:['New tile drawn','Next player'],cap:'3. You draw a new tile and the next player goes.'}]},
+    {t:'Founding and growing',h:'<p class="muted">You choose which company to found and get a free share in it.</p>',
+     f:[{g:['.t..'],cap:'A lone tile just sits on the board.'},
+        {g:['.t*.'],cap:'Place a tile right next to it...'},
+        {g:['.33.'],c:['Company founded','Free share'],cap:'...and you found a company.'},
+        {g:['.3333'],c:['Bigger company','Pricier shares'],cap:'Tiles next to it make it grow. Bigger means pricier shares.'}]},
+    {t:'Mergers: where the money is',h:'<p class="muted">After every merger the game shows a short note saying exactly what happened and who got paid.</p>',
+     f:[{g:['3333.66'],cap:'A big company and a small one with a gap between them.'},
+        {g:['3333*66'],cap:'A tile fills the gap and joins them.'},
+        {g:['3333333'],c:['Bigger company survives'],cap:'The bigger company swallows the smaller one.'},
+        {g:['3333333'],c:['Shareholders of the swallowed company are paid'],cap:'Everyone holding the swallowed company gets paid.'}]},
+    {t:'Who gets paid',h:'<p class="muted">Example: a R600 share in Tycoon mode. Classic pays only the top 2.</p>',
+     f:[{b:[['1st','100%','R6 000']],cap:'Most shares gets 10 times the share price.'},
+        {b:[['1st','100%','R6 000'],['2nd','50%','R3 000']],cap:'Second most gets 5 times.'},
+        {b:[['1st','100%','R6 000'],['2nd','50%','R3 000'],['3rd','30%','R1 800']],cap:'Third most gets 3 times.'},
+        {c:['Sell','Trade 2 for 1','Keep'],cap:'Then everyone holding it can sell, trade 2 for 1 into the survivor, or keep.'}]},
+    {t:'Safe companies and the end',h:'<p class="muted">Whoever is playing may end the game once it is allowed.</p>',
+     f:[{g:['3333','3333','333.'],c:['Safe at 11 tiles'],cap:'A company with 11 or more tiles is safe. It can never be swallowed.'},
+        {c:['One company hits 41 tiles','or every company is safe'],cap:'Then the game can be ended.'},
+        {c:['Final bonuses paid','All shares sold','Most cash wins'],cap:'Final bonuses are paid, every share is sold, and the most cash wins.'}]},
+    {t:'Extra rules the host can switch on',h:'<p class="muted">You can reopen this tour any time from the home screen or the menu.</p>',
+     f:[{c:['Founder\'s bonus'],cap:'The founder of a swallowed company gets 3 times the share price.'},
+        {c:['Share offers'],cap:'Offer another player cash, above market price, for some of their shares.'},
+        {c:['Secret mode'],cap:'Hide other players\' shares and the live net worth.'},
+        {c:['Turn timer','Nudge'],cap:'The game plays for you when time runs out. Nudge a slow friend.'},
+        {c:['Payout preview'],cap:'Your own setting: see what a merger tile would pay you first.'}]}
   ];
 }
-var TOUR={i:0};
+var TOUR={i:0,f:0,tm:null};
+function tourFrameHtml(fr){
+  var h='';
+  if(fr.g)h+=miniGrid(fr.g);
+  if(fr.b){h+='<div class="bars">';fr.b.forEach(function(x){h+='<div class="bar"><span>'+x[0]+'</span><i style="--w:'+x[1]+'"></i><b>'+x[2]+'</b></div>'});h+='</div>'}
+  if(fr.c){h+='<div class="chips">';fr.c.forEach(function(x){h+='<span class="chip">'+x+'</span>'});h+='</div>'}
+  return h;
+}
+function tourShow(k){
+  var sl=tourSlides()[TOUR.i],n=sl.f.length;
+  TOUR.f=((k%n)+n)%n;
+  var fr=sl.f[TOUR.f];
+  $('#tourScene').innerHTML=tourFrameHtml(fr);
+  $('#tourCap').textContent=fr.cap;
+  Array.prototype.forEach.call(document.querySelectorAll('#tourFdots button'),function(b,j){b.setAttribute('aria-pressed',j===TOUR.f?'true':'false')});
+}
+function tourStop(){if(TOUR.tm){clearInterval(TOUR.tm);TOUR.tm=null}}
+function tourPlay(){
+  tourStop();
+  var rm=false;try{rm=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){}
+  if(rm)return;
+  TOUR.tm=setInterval(function(){tourShow(TOUR.f+1)},2600);
+}
 function tourRender(){
-  var sl=tourSlides(),s=sl[TOUR.i],dots='';
+  var sl=tourSlides(),s=sl[TOUR.i],dots='',fd='';
   sl.forEach(function(x,k){dots+='<i'+(k<=TOUR.i?' class="on"':'')+'></i>'});
-  $('#tourBody').innerHTML='<h2>'+s.t+'</h2>'+s.h+'<div class="dots">'+dots+'</div>';
+  s.f.forEach(function(x,j){fd+='<button type="button" data-fr="'+j+'" aria-label="Show part '+(j+1)+'" aria-pressed="false">'+(j+1)+'</button>'});
+  $('#tourBody').innerHTML='<div class="tstep">Step '+(TOUR.i+1)+' of '+sl.length+'</div><h2>'+s.t+'</h2>'+
+    '<div class="stage"><div id="tourScene"></div></div><p class="tcap" id="tourCap" aria-live="polite"></p><div class="fdots" id="tourFdots">'+fd+'</div>'+s.h+'<div class="dots">'+dots+'</div>';
   $('#tourBack').hidden=TOUR.i===0;
   $('#tourNext').textContent=TOUR.i===sl.length-1?'Done':'Next';
+  tourShow(0);tourPlay();
 }
 function tourOpen(){TOUR.i=0;tourRender();$('#tour').hidden=false;store.set('asa-tour','1');try{$('#tourNext').focus()}catch(e){}}
-function tourClose(){$('#tour').hidden=true}
+function tourClose(){tourStop();$('#tour').hidden=true}
 function renderMnote(s){
   var el=$('#mnote');
   if(s.mnote&&s.phase!=='over'){el.innerHTML='<b>What just happened.</b> '+esc(s.mnote);el.hidden=false}else el.hidden=true;
@@ -1295,8 +1430,8 @@ function renderLobby(){
   var lh=(G.meta&&G.meta.hide)||{};
   $('#lobbyMode').textContent+=(hideText(lh)?' '+hideText(lh):'');
   $('#lobbyHide').hidden=!G.isHost;
-  Array.prototype.forEach.call(document.querySelectorAll('#lobbyTimer button'),function(b){b.setAttribute('aria-pressed',(+b.dataset.tv)===(+lh.timer|0)?'true':'false')});
-  Array.prototype.forEach.call(document.querySelectorAll('#lobbyHide button'),function(b){var k=b.dataset.h;b.setAttribute('aria-pressed',lh[k]?'true':'false');b.textContent=(lh[k]?'On: ':'Off: ')+OPT_LABEL[k]});
+  stepUi('#lobbyTimerStep','#lobbyTimerVal',+lh.timer|0);
+  Array.prototype.forEach.call(document.querySelectorAll('#lobbyHide [data-h]'),function(b){var k=b.dataset.h;if(OPT_TXT[k])optFill(b,k,!!lh[k])});
   $('#plist').innerHTML=G.lobby.map(function(p){
     var tags=(p.id===hostId?'<span class="badge">host</span>':'')+(p.bot?'<span class="badge">'+aiTag(p)+'</span>':'')+(p.id===G.uid?'<span class="badge">you</span>':'');
     var rm=(G.isHost&&p.bot)?'<button class="btn alt small" data-rm="'+esc(p.id)+'" aria-label="Remove '+esc(p.name)+'">Remove</button>':'';

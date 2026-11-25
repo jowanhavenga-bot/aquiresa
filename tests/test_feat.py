@@ -18,7 +18,7 @@ with sync_playwright() as p:
     while A.inner_text('#tourNext')!='Done': A.click('#tourNext'); n+=1
     print('tour slides',n,'| last title:',A.inner_text('#tourBody h2')); A.click('#tourNext'); print('tour closed:',not A.is_visible('#tour'))
     # host with timer 30 + founders
-    A.click('#hideFounders'); A.click('#timerSeg [data-v="30"]'); A.click('#hostBtn'); A.wait_for_timeout(2500)
+    A.click('#hideFounders'); A.click('#timerStep [data-d="1"]'); A.click('#hostBtn'); A.wait_for_timeout(2500)
     code=A.inner_text('#lobbyCode'); B.fill('#codeInput',code); B.click('#joinBtn'); B.wait_for_timeout(1500)
     print('guest lobby note:',B.inner_text('#lobbyMode')[-110:])
     A.click('[data-l=start]'); A.wait_for_timeout(1500)
