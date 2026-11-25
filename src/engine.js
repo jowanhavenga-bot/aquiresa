@@ -167,7 +167,7 @@
       return { id: d.id, name: d.name, bot: !!d.bot, pers: d.pers || 'balanced', lvl: d.lvl || 'normal', cash: START_CASH, stocks: [0, 0, 0, 0, 0, 0, 0, 0], hand: [],
         st: { spent: 0, bought: 0, proceeds: 0, mbonus: 0, founded: 0, merges: 0, best: { amt: 0, chain: 0, kind: '', final: false } } };
     });
-    var s = { v: 2, rev: 0, tycoon: !(opts && opts.tycoon === false), hide: { shares: !!(opts && opts.hide && opts.hide.shares), worth: !!(opts && opts.hide && opts.hide.worth) }, rules: { founders: !!(opts && opts.rules && opts.rules.founders), offers: !!(opts && opts.rules && opts.rules.offers) }, founder: {}, oc: 0, offer: null, hist: [], players: players, board: [], bag: bag, discard: [], turn: 0, phase: 'place', pend: null, log: [], over: null };
+    var s = { v: 2, rev: 0, tycoon: !(opts && opts.tycoon === false), hide: { shares: !!(opts && opts.hide && opts.hide.shares), worth: !!(opts && opts.hide && opts.hide.worth) }, rules: { founders: !!(opts && opts.rules && opts.rules.founders), offers: !!(opts && opts.rules && opts.rules.offers), timer: ((opts && opts.rules && +opts.rules.timer) | 0) }, mnote: null, founder: {}, oc: 0, offer: null, hist: [], players: players, board: [], bag: bag, discard: [], turn: 0, phase: 'place', pend: null, log: [], over: null };
     for (i = 0; i < N; i++) s.board.push(null);
     // draw for first move: each draws a tile, it goes on the board unaligned.
     var draws = players.map(function (p) { var t = s.bag.shift(); s.board[t] = 0; return { p: p, t: t }; });
@@ -256,10 +256,12 @@
     p.price = price(c, p.sz[c]);
     var pays = computeBonuses(s, c, p.price);
     if (!pays.length) addLog(s, 'Nobody holds ' + CHAINS[c].name + ' shares, so no bonuses.');
+    var fbAmt = 0, fo = null;
     if (s.rules && s.rules.founders && s.founder && s.founder[c] != null && s.players[s.founder[c]]) {
-      var fo = s.players[s.founder[c]];
-      fo.cash += 1000; fo.st.mbonus += 1000;
-      addLog(s, fo.name + ' gets a R\u00a01\u00a0000 founder\'s bonus for ' + CHAINS[c].name + '.');
+      fo = s.players[s.founder[c]];
+      fbAmt = 3 * p.price;
+      fo.cash += fbAmt; fo.st.mbonus += fbAmt;
+      addLog(s, fo.name + ' gets ' + money(fbAmt) + ' as the founder of ' + CHAINS[c].name + ' (the same as a third-place bonus).');
       delete s.founder[c];
     }
     pays.forEach(function (b) {
@@ -270,6 +272,11 @@
       addLog(s, pname(s, b.i) + ' takes ' + money(b.amt) + ' for ' + b.kind + ' in ' + CHAINS[c].name + '.');
     });
     p.paid = pays;
+    var note = CHAINS[p.survivor].name + ' swallowed ' + CHAINS[c].name + '. ' +
+      (pays.length ? 'Bonuses to the biggest shareholders: ' + pays.map(function (b) { return s.players[b.i].name + ' ' + money(b.amt) + ' (' + b.kind + ')'; }).join(', ') + '.' : 'Nobody held shares, so no bonuses.') +
+      (fo ? ' Founder ' + fo.name + ' gets ' + money(fbAmt) + '.' : '') +
+      ' Now each shareholder sells at ' + money(p.price) + ' a share, trades 2 for 1 into ' + CHAINS[p.survivor].name + ', or keeps them.';
+    s.mnote = s.mnote ? s.mnote + ' ' + note : note;
     var n = s.players.length, q = [];
     for (var k = 0; k < n; k++) {
       var i = (s.turn + k) % n;
@@ -451,6 +458,7 @@
       case 'place': {
         if (s.phase !== 'place') return fail('You cannot place a tile now.');
         if (pl.hand.indexOf(a.t) < 0) return fail('That tile is not in your hand.');
+        s.mnote = null;
         var an = analyze(s.board, a.t);
         if (an.kind === 'dead' || an.kind === 'blocked') return fail(an.reason);
         pl.hand.splice(pl.hand.indexOf(a.t), 1);
@@ -617,7 +625,7 @@
     }
     switch (s.phase) {
       case 'place': {
-        if (endCondition(s) && (leader(s, i) || (P === 'chaotic' && rng() < 0.25))) return { type: 'declareEnd' };
+        if (!NOEND && endCondition(s) && (leader(s, i) || (P === 'chaotic' && rng() < 0.25))) return { type: 'declareEnd' };
         var best = null, bs = -1e9;
         var playable = me.hand.filter(function (t) { return isPlayable(s.board, t); });
         if (playable.length && ((L === 'easy' && rng() < 0.35) || (P === 'chaotic' && rng() < 0.3))) return { type: 'place', t: playable[Math.floor(rng() * playable.length)] };
@@ -690,7 +698,7 @@
           if (cash < 300) break;
         }
         var a = { type: 'buy', buys: buys };
-        if (endCondition(s) && (leader(s, i) || (P === 'chaotic' && rng() < 0.25))) a.end = true;
+        if (!NOEND && endCondition(s) && (leader(s, i) || (P === 'chaotic' && rng() < 0.25))) a.end = true;
         return a;
       }
     }
@@ -706,7 +714,7 @@
       if (tied.length === 1 && c === tied[0]) return;
       var pr = price(c, sz[c]), mine = null;
       computeBonuses(s, c, pr).forEach(function (b) { if (b.i === idx) mine = b; });
-      var fb = (s.rules && s.rules.founders && s.founder && s.founder[c] === idx) ? 1000 : 0;
+      var fb = (s.rules && s.rules.founders && s.founder && s.founder[c] === idx) ? 3 * pr : 0;
       rows.push({ chain: c, size: sz[c], price: pr, held: s.players[idx].stocks[c], amt: mine ? mine.amt : 0, kind: mine ? mine.kind : '', place: mine ? mine.place : 0, founder: fb });
     });
     return { tie: tied.length > 1, survivors: tied, rows: rows };
@@ -731,7 +739,22 @@
     return out;
   }
 
+  var NOEND = false;
+  function autoPlay(s, rng) {
+    var a = actorOf(s);
+    if (a < 0) return null;
+    NOEND = true;
+    var act; try { act = botAction(s, rng || Math.random); } finally { NOEND = false; }
+    if (act.type === 'declareEnd') return null;
+    if (act.type === 'buy') act.end = false;
+    var r = apply(s, act, a);
+    if (!r.ok) return null;
+    addLog(r.state, r.state.players[a].name + ' ran out of time, so the game played for them.');
+    return r.state;
+  }
+
   root.AcquireEngine = {
+    autoPlay: autoPlay,
     previewMerge: previewMerge, perPlayer: perPlayer,
     COLS: COLS, ROWS: ROWS, N: N, HAND: HAND, SHARES: SHARES, CHAINS: CHAINS,
     tileLabel: tileLabel, nbrs: nbrs, sizes: sizes, activeIds: activeIds, price: price,

@@ -180,6 +180,22 @@ details.rules li{margin:5px 0;max-width:70ch}
 .rec li .sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
 .pv ul{margin:6px 0 0;padding-left:18px}
 .pv li{margin:3px 0}
+.clock{display:inline-block;margin-top:8px;padding:5px 10px;border-radius:8px;background:var(--surface2);font-family:var(--mono);font-weight:700}
+.clock.urgent{background:var(--bad);color:#fff}
+#tour{position:fixed;inset:0;z-index:60;background:rgba(10,16,24,.62);display:flex;align-items:center;justify-content:center;padding:16px}
+#tour[hidden]{display:none}
+#tour .card{background:var(--surface);color:var(--ink);border-radius:14px;max-width:480px;width:100%;max-height:92vh;overflow:auto;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+#tour h2{margin:0 0 8px}
+#tour .dots{display:flex;gap:6px;margin:14px 0 10px}
+#tour .dots i{flex:1;height:4px;border-radius:2px;background:var(--line)}
+#tour .dots i.on{background:var(--btn)}
+.mini{display:grid;gap:3px;margin:10px 0;max-width:260px}
+.mini b{display:block;aspect-ratio:1;border-radius:3px;background:var(--surface2);border:1px solid var(--line)}
+.mini b.t{background:var(--cell);border-color:var(--cell)}
+.mini b.n{background:var(--cell);border:2px solid var(--focus)}
+.mini-cap{font-size:12px;color:var(--muted);margin:6px 0 0}
+.tour-tbl{border-collapse:collapse;margin:8px 0}
+.tour-tbl td{padding:4px 12px 4px 0;white-space:nowrap}
 </style>
 
 <div class="shell">
@@ -191,7 +207,9 @@ details.rules li{margin:5px 0;max-width:70ch}
     </div>
   </header>
 
+  <div id="tour" hidden role="dialog" aria-modal="true" aria-label="How to play"><div class="card"><div id="tourBody"></div><div class="row" style="justify-content:space-between"><button class="btn alt small" id="tourBack">Back</button><span class="row"><button class="btn alt small" id="tourSkip">Close</button><button class="btn small" id="tourNext">Next</button></span></div></div></div>
   <div id="menu" class="sheet" hidden>
+    <button class="btn alt small" id="menuTour">How to play tour</button>
     <button class="btn alt small" id="leaveBtn">Leave game</button>
     <button class="btn alt small" id="menuClose">Close</button>
   </div>
@@ -201,6 +219,7 @@ details.rules li{margin:5px 0;max-width:70ch}
     <section id="home" class="home">
       <div class="hero wide">
         <h1>Build it. Merge it. Own it.</h1>
+        <p><button class="btn alt small" id="tourBtn">New to Acquire? Take the 60-second tour</button></p>
         <p>A tile-laying takeover game for 2 to 6 players. Found South African companies, grow them, hold the biggest stakes when they merge, and finish with the most cash.</p>
       </div>
       <div class="panel stack">
@@ -228,6 +247,10 @@ details.rules li{margin:5px 0;max-width:70ch}
           <div class="stack" style="gap:6px">
             <button class="seg-toggle" id="hideFounders" aria-pressed="false"></button>
             <button class="seg-toggle" id="hideOffers" aria-pressed="false"></button>
+          </div>
+          <p class="muted" style="margin:10px 0 6px">Turn timer (online games)</p>
+          <div class="seg wrap" id="timerSeg" role="group" aria-label="Turn timer">
+            <button data-v="0" aria-pressed="true">Off</button><button data-v="30" aria-pressed="false">30 s</button><button data-v="60" aria-pressed="false">60 s</button><button data-v="90" aria-pressed="false">90 s</button><button data-v="120" aria-pressed="false">2 min</button>
           </div>
           <p class="fine" id="rulesNote" style="margin:6px 0 0"></p>
         </div>
@@ -334,6 +357,7 @@ details.rules li{margin:5px 0;max-width:70ch}
             <button class="seg-toggle" data-h="worth" aria-pressed="false"></button>
             <button class="seg-toggle" data-h="founders" aria-pressed="false"></button>
             <button class="seg-toggle" data-h="offers" aria-pressed="false"></button>
+            <div class="seg wrap" id="lobbyTimer" role="group" aria-label="Turn timer"><button data-tv="0" aria-pressed="false">Timer off</button><button data-tv="30" aria-pressed="false">30 s</button><button data-tv="60" aria-pressed="false">60 s</button><button data-tv="90" aria-pressed="false">90 s</button><button data-tv="120" aria-pressed="false">2 min</button></div>
           </div>
         </div>
         <div class="row"><button class="btn alt small" id="copyCode">Copy code</button><button class="btn alt small" id="copyLink">Copy invite link</button></div>
@@ -349,8 +373,10 @@ details.rules li{margin:5px 0;max-width:70ch}
         <div class="panel">
           <div class="status"><div class="av" id="stAv"></div><div style="min-width:0"><div class="t1" id="stT1"></div><div class="t2" id="stT2"></div></div></div>
           <div class="ticker" id="ticker"></div>
+          <div class="clock" id="clock" hidden></div>
         </div>
         <div id="boardWrap"><div class="board" id="board" aria-label="Game board"></div></div>
+        <div class="panel note" id="mnote" hidden></div>
         <div class="panel act" id="actions" aria-live="polite"></div>
         <div class="panel" id="handPanel"><p class="tilecap">Your tiles</p><div class="hand" id="hand"></div></div>
       </div>
@@ -553,7 +579,7 @@ details.rules li{margin:5px 0;max-width:70ch}
       return { id: d.id, name: d.name, bot: !!d.bot, pers: d.pers || 'balanced', lvl: d.lvl || 'normal', cash: START_CASH, stocks: [0, 0, 0, 0, 0, 0, 0, 0], hand: [],
         st: { spent: 0, bought: 0, proceeds: 0, mbonus: 0, founded: 0, merges: 0, best: { amt: 0, chain: 0, kind: '', final: false } } };
     });
-    var s = { v: 2, rev: 0, tycoon: !(opts && opts.tycoon === false), hide: { shares: !!(opts && opts.hide && opts.hide.shares), worth: !!(opts && opts.hide && opts.hide.worth) }, rules: { founders: !!(opts && opts.rules && opts.rules.founders), offers: !!(opts && opts.rules && opts.rules.offers) }, founder: {}, oc: 0, offer: null, hist: [], players: players, board: [], bag: bag, discard: [], turn: 0, phase: 'place', pend: null, log: [], over: null };
+    var s = { v: 2, rev: 0, tycoon: !(opts && opts.tycoon === false), hide: { shares: !!(opts && opts.hide && opts.hide.shares), worth: !!(opts && opts.hide && opts.hide.worth) }, rules: { founders: !!(opts && opts.rules && opts.rules.founders), offers: !!(opts && opts.rules && opts.rules.offers), timer: ((opts && opts.rules && +opts.rules.timer) | 0) }, mnote: null, founder: {}, oc: 0, offer: null, hist: [], players: players, board: [], bag: bag, discard: [], turn: 0, phase: 'place', pend: null, log: [], over: null };
     for (i = 0; i < N; i++) s.board.push(null);
     // draw for first move: each draws a tile, it goes on the board unaligned.
     var draws = players.map(function (p) { var t = s.bag.shift(); s.board[t] = 0; return { p: p, t: t }; });
@@ -642,10 +668,12 @@ details.rules li{margin:5px 0;max-width:70ch}
     p.price = price(c, p.sz[c]);
     var pays = computeBonuses(s, c, p.price);
     if (!pays.length) addLog(s, 'Nobody holds ' + CHAINS[c].name + ' shares, so no bonuses.');
+    var fbAmt = 0, fo = null;
     if (s.rules && s.rules.founders && s.founder && s.founder[c] != null && s.players[s.founder[c]]) {
-      var fo = s.players[s.founder[c]];
-      fo.cash += 1000; fo.st.mbonus += 1000;
-      addLog(s, fo.name + ' gets a R\u00a01\u00a0000 founder\'s bonus for ' + CHAINS[c].name + '.');
+      fo = s.players[s.founder[c]];
+      fbAmt = 3 * p.price;
+      fo.cash += fbAmt; fo.st.mbonus += fbAmt;
+      addLog(s, fo.name + ' gets ' + money(fbAmt) + ' as the founder of ' + CHAINS[c].name + ' (the same as a third-place bonus).');
       delete s.founder[c];
     }
     pays.forEach(function (b) {
@@ -656,6 +684,11 @@ details.rules li{margin:5px 0;max-width:70ch}
       addLog(s, pname(s, b.i) + ' takes ' + money(b.amt) + ' for ' + b.kind + ' in ' + CHAINS[c].name + '.');
     });
     p.paid = pays;
+    var note = CHAINS[p.survivor].name + ' swallowed ' + CHAINS[c].name + '. ' +
+      (pays.length ? 'Bonuses to the biggest shareholders: ' + pays.map(function (b) { return s.players[b.i].name + ' ' + money(b.amt) + ' (' + b.kind + ')'; }).join(', ') + '.' : 'Nobody held shares, so no bonuses.') +
+      (fo ? ' Founder ' + fo.name + ' gets ' + money(fbAmt) + '.' : '') +
+      ' Now each shareholder sells at ' + money(p.price) + ' a share, trades 2 for 1 into ' + CHAINS[p.survivor].name + ', or keeps them.';
+    s.mnote = s.mnote ? s.mnote + ' ' + note : note;
     var n = s.players.length, q = [];
     for (var k = 0; k < n; k++) {
       var i = (s.turn + k) % n;
@@ -837,6 +870,7 @@ details.rules li{margin:5px 0;max-width:70ch}
       case 'place': {
         if (s.phase !== 'place') return fail('You cannot place a tile now.');
         if (pl.hand.indexOf(a.t) < 0) return fail('That tile is not in your hand.');
+        s.mnote = null;
         var an = analyze(s.board, a.t);
         if (an.kind === 'dead' || an.kind === 'blocked') return fail(an.reason);
         pl.hand.splice(pl.hand.indexOf(a.t), 1);
@@ -1003,7 +1037,7 @@ details.rules li{margin:5px 0;max-width:70ch}
     }
     switch (s.phase) {
       case 'place': {
-        if (endCondition(s) && (leader(s, i) || (P === 'chaotic' && rng() < 0.25))) return { type: 'declareEnd' };
+        if (!NOEND && endCondition(s) && (leader(s, i) || (P === 'chaotic' && rng() < 0.25))) return { type: 'declareEnd' };
         var best = null, bs = -1e9;
         var playable = me.hand.filter(function (t) { return isPlayable(s.board, t); });
         if (playable.length && ((L === 'easy' && rng() < 0.35) || (P === 'chaotic' && rng() < 0.3))) return { type: 'place', t: playable[Math.floor(rng() * playable.length)] };
@@ -1076,7 +1110,7 @@ details.rules li{margin:5px 0;max-width:70ch}
           if (cash < 300) break;
         }
         var a = { type: 'buy', buys: buys };
-        if (endCondition(s) && (leader(s, i) || (P === 'chaotic' && rng() < 0.25))) a.end = true;
+        if (!NOEND && endCondition(s) && (leader(s, i) || (P === 'chaotic' && rng() < 0.25))) a.end = true;
         return a;
       }
     }
@@ -1092,7 +1126,7 @@ details.rules li{margin:5px 0;max-width:70ch}
       if (tied.length === 1 && c === tied[0]) return;
       var pr = price(c, sz[c]), mine = null;
       computeBonuses(s, c, pr).forEach(function (b) { if (b.i === idx) mine = b; });
-      var fb = (s.rules && s.rules.founders && s.founder && s.founder[c] === idx) ? 1000 : 0;
+      var fb = (s.rules && s.rules.founders && s.founder && s.founder[c] === idx) ? 3 * pr : 0;
       rows.push({ chain: c, size: sz[c], price: pr, held: s.players[idx].stocks[c], amt: mine ? mine.amt : 0, kind: mine ? mine.kind : '', place: mine ? mine.place : 0, founder: fb });
     });
     return { tie: tied.length > 1, survivors: tied, rows: rows };
@@ -1117,7 +1151,22 @@ details.rules li{margin:5px 0;max-width:70ch}
     return out;
   }
 
+  var NOEND = false;
+  function autoPlay(s, rng) {
+    var a = actorOf(s);
+    if (a < 0) return null;
+    NOEND = true;
+    var act; try { act = botAction(s, rng || Math.random); } finally { NOEND = false; }
+    if (act.type === 'declareEnd') return null;
+    if (act.type === 'buy') act.end = false;
+    var r = apply(s, act, a);
+    if (!r.ok) return null;
+    addLog(r.state, r.state.players[a].name + ' ran out of time, so the game played for them.');
+    return r.state;
+  }
+
   root.AcquireEngine = {
+    autoPlay: autoPlay,
     previewMerge: previewMerge, perPlayer: perPlayer,
     COLS: COLS, ROWS: ROWS, N: N, HAND: HAND, SHARES: SHARES, CHAINS: CHAINS,
     tileLabel: tileLabel, nbrs: nbrs, sizes: sizes, activeIds: activeIds, price: price,
@@ -1148,7 +1197,7 @@ var RULES='<ul>'
 +'<li><b>Ending.</b> Once any company reaches 41 tiles, or every company on the board is safe, the player whose turn it is may end the game. Final bonuses are paid, every share is sold, and the most cash wins.</li>'
 +'</ul>';
 
-var G={mode:null,prefs:{sound:true,preview:false},ai:{lvl:'normal',pers:'mixed'},sfx:null,tycoon:true,hide:{shares:false,worth:false,founders:false,offers:false},viewer:-1,passFor:-1,localN:2,localAi:0,code:null,isHost:false,state:null,meIdx:-1,meta:null,lobby:[],sel:null,ui:{},botTimer:null,unsubs:[],db:null,uid:null,
+var G={mode:null,prefs:{sound:true,preview:false},ai:{lvl:'normal',pers:'mixed'},sfx:null,tycoon:true,hide:{shares:false,worth:false,founders:false,offers:false,timer:0},dl:null,viewer:-1,passFor:-1,localN:2,localAi:0,code:null,isHost:false,state:null,meIdx:-1,meta:null,lobby:[],sel:null,ui:{},botTimer:null,unsubs:[],db:null,uid:null,
   serverState:null,cells:null,soloBots:3,screen:'home',confirmLeave:false,connTimer:null,stateRef:null,metaRef:null,lobbyRef:null,toastTimer:null};
 
 var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},del:function(k){try{localStorage.removeItem(k)}catch(e){}}};
@@ -1184,7 +1233,7 @@ function buildHome(){
   $('#rulesHome').innerHTML=RULES;$('#rulesGame').innerHTML=RULES;
   var nm=store.get('asa-name');if(nm)$('#nameInput').value=nm;
   if(store.get('asa-mode')==='classic')G.tycoon=false;
-  try{var hh=JSON.parse(store.get('asa-hide')||'{}');G.hide={shares:!!hh.shares,worth:!!hh.worth,founders:!!hh.founders,offers:!!hh.offers}}catch(e){}
+  try{var hh=JSON.parse(store.get('asa-hide')||'{}');G.hide={shares:!!hh.shares,worth:!!hh.worth,founders:!!hh.founders,offers:!!hh.offers,timer:[0,30,60,90,120].indexOf(+hh.timer)>=0?+hh.timer:0}}catch(e){}
   try{var pf=JSON.parse(store.get('asa-prefs')||'{}');G.prefs={sound:pf.sound!==false,preview:!!pf.preview}}catch(e){}
   try{var ai=JSON.parse(store.get('asa-ai')||'{}');if(['easy','normal','hard'].indexOf(ai.lvl)>=0)G.ai.lvl=ai.lvl;if(['mixed'].concat(PERS_LIST).indexOf(ai.pers)>=0)G.ai.pers=ai.pers}catch(e){}
   ['Sound','Preview'].forEach(function(k){$('#pref'+k).addEventListener('click',function(){G.prefs[k.toLowerCase()]=!G.prefs[k.toLowerCase()];store.set('asa-prefs',JSON.stringify(G.prefs));setModeUi();if(k==='Sound'&&G.prefs.sound)sfxKaching(false)})});
@@ -1228,16 +1277,22 @@ function buildHome(){
   $('#actions').addEventListener('click',function(e){var b=e.target.closest('[data-a]');if(!b||b.disabled)return;handleAction(b.dataset.a)});
   $('#actions').addEventListener('change',function(e){var t=e.target.closest('[data-o]');if(!t||!G.ui.offer||!G.state)return;G.ui.offer[t.dataset.o]=+t.value;if(t.dataset.o==='chain'){G.ui.offer.qty=1}offerDefaults(G.state,G.ui.offer);renderActions()});
   $('#lobbyBtns').addEventListener('click',function(e){var b=e.target.closest('[data-l]');if(!b||b.disabled)return;lobbyAction(b.dataset.l)});
-  $('#lobbyHide').addEventListener('click',function(e){var b=e.target.closest('[data-h]');if(b)toggleHide(b.dataset.h)});
+  $('#lobbyHide').addEventListener('click',function(e){var t=e.target.closest('[data-tv]');if(t){setLobbyTimer(+t.dataset.tv);return}var b=e.target.closest('[data-h]');if(b)toggleHide(b.dataset.h)});
+  Array.prototype.forEach.call(document.querySelectorAll('#timerSeg button'),function(b){b.addEventListener('click',function(){G.hide.timer=+b.dataset.v;store.set('asa-hide',JSON.stringify(G.hide));setModeUi()})});
+  $('#tourBtn').addEventListener('click',tourOpen);$('#menuTour').addEventListener('click',function(){$('#menu').hidden=true;tourOpen()});
+  $('#tourNext').addEventListener('click',function(){if(TOUR.i>=tourSlides().length-1)tourClose();else{TOUR.i++;tourRender()}});
+  $('#tourBack').addEventListener('click',function(){if(TOUR.i>0){TOUR.i--;tourRender()}});
+  $('#tourSkip').addEventListener('click',tourClose);
+  $('#tour').addEventListener('click',function(e){if(e.target.id==='tour')tourClose()});
   $('#plist').addEventListener('click',function(e){var b=e.target.closest('[data-rm]');if(!b)return;removeBot(b.dataset.rm)});
   var cells='';for(var t=0;t<108;t++)cells+='<div class="cell" data-t="'+t+'"></div>';
   $('#board').innerHTML=cells;G.cells=Array.prototype.slice.call($('#board').children);
 }
-var OPT_LABEL={shares:'hide other players\' shares',worth:'hide live net worth',founders:'founder\'s bonus (R1\u00a0000 when your company is swallowed)',offers:'share offers between players'};
+var OPT_LABEL={shares:'hide other players\' shares',worth:'hide live net worth',founders:'founder\'s bonus (3 times the share price when your company is swallowed, like a third-place bonus)',offers:'share offers between players'};
 function hideText(h){
   var a=[];if(h&&h.shares)a.push('other players\' shares are hidden');if(h&&h.worth)a.push('live net worth is hidden');
   var t=a.length?'Secret mode: '+a.join(' and ')+'. Everything is revealed when the game ends.':'';
-  var r=[];if(h&&h.founders)r.push('founder\'s bonus');if(h&&h.offers)r.push('share offers');
+  var r=[];if(h&&h.founders)r.push('founder\'s bonus');if(h&&h.offers)r.push('share offers');if(h&&h.timer)r.push('a '+h.timer+' second turn timer');
   return t+(r.length?(t?' ':'')+'Extra rules on: '+r.join(' and ')+'.':'');
 }
 function setModeUi(){
@@ -1249,9 +1304,10 @@ function setModeUi(){
   $('#aiNote').textContent=LN[G.ai.lvl]+' '+PN[G.ai.pers]
   $('#hideShares').setAttribute('aria-pressed',G.hide.shares?'true':'false');$('#hideWorth').setAttribute('aria-pressed',G.hide.worth?'true':'false');
   $('#hideShares').textContent=(G.hide.shares?'On: ':'Off: ')+'hide other players\' shares';$('#hideWorth').textContent=(G.hide.worth?'On: ':'Off: ')+'hide live net worth';
+  Array.prototype.forEach.call(document.querySelectorAll('#timerSeg button'),function(b){b.setAttribute('aria-pressed',(+b.dataset.v)===(G.hide.timer|0)?'true':'false')});
   $('#hideFounders').setAttribute('aria-pressed',G.hide.founders?'true':'false');$('#hideOffers').setAttribute('aria-pressed',G.hide.offers?'true':'false');
   $('#hideFounders').textContent=(G.hide.founders?'On: ':'Off: ')+OPT_LABEL.founders;$('#hideOffers').textContent=(G.hide.offers?'On: ':'Off: ')+OPT_LABEL.offers;
-  $('#rulesNote').textContent='Founder\'s bonus: whoever founded a company gets R1\u00a0000 when it is swallowed in a merger. Share offers: on your turn, offer another player cash for some of their shares.';
+  $('#rulesNote').textContent='Founder\'s bonus: whoever founded a company gets 3 times the share price when it is swallowed in a merger, the same as a third-place bonus. Share offers: on your turn, offer another player cash for some of their shares.';
   $('#hideNote').textContent=(G.hide.shares||G.hide.worth)?hideText({shares:G.hide.shares,worth:G.hide.worth}):'Off by default. Your own shares and cash always stay visible to you.';
   Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'),function(b){b.setAttribute('aria-pressed',(b.dataset.m==='tycoon')===G.tycoon?'true':'false')});
   $('#modeNote').textContent=G.tycoon?'The top 3 shareholders are paid on every merger and at the end: 10x, 5x and 3x the share price.':'The top 2 shareholders are paid on every merger and at the end: 10x and 5x the share price.';
@@ -1603,6 +1659,70 @@ function makeBots(n,usedNames,idPrefix){
   return out;
 }
 
+
+/* ---------- how to play tour ---------- */
+function miniGrid(rows){
+  var w=rows[0].length,h='<div class="mini" style="grid-template-columns:repeat('+w+',1fr)">';
+  rows.forEach(function(r){r.split('').forEach(function(ch){
+    if(ch==='.')h+='<b></b>';else if(ch==='t')h+='<b class="t"></b>';else if(ch==='*')h+='<b class="n"></b>';
+    else h+='<b style="background:var(--c'+ch+');border-color:var(--c'+ch+')"></b>';
+  })});
+  return h+'</div>';
+}
+function tourSlides(){
+  return [
+    {t:'The goal',h:'<p>Finish with the <b>most money</b>. You earn it three ways:</p><ul><li>Buy <b>shares</b> in companies while they are still cheap.</li><li>Collect <b>bonuses</b> when companies merge.</li><li>Sell your shares at the end.</li></ul><p class="muted">Seven South African companies share one board. You never own a company, only shares in it.</p>'},
+    {t:'Your turn',h:'<ol><li><b>Place one tile</b> from your hand on the board.</li><li><b>Buy up to 3 shares</b> in any company on the board.</li><li>You draw a new tile and the next player goes.</li></ol>'+miniGrid(['.....','.t*..','.....'])+'<p class="mini-cap">A tile on its own just sits there.</p>'},
+    {t:'Founding and growing',h:'<p>Place a tile <b>next to another lone tile</b> and you found a company. You pick which one and get a <b>free share</b>.</p>'+miniGrid(['.t*.'])+'<p class="mini-cap">Two tiles touch</p>'+miniGrid(['.33.'])+'<p class="mini-cap">A company is born. Tiles added next to it make it grow, and a bigger company means pricier shares.</p>'},
+    {t:'Mergers: where the money is',h:'<p>A tile that joins two companies makes them <b>merge</b>. The bigger one survives and swallows the smaller one.</p>'+miniGrid(['333*66'])+'<p class="mini-cap">Before</p>'+miniGrid(['3333333'])+'<p class="mini-cap">After: the bigger company wins</p><p>After every merger the game adds a short note saying exactly what happened and who got paid.</p>'},
+    {t:'Who gets paid',h:'<p>When a company is swallowed, its <b>biggest shareholders get a bonus</b>. With a R600 share, tycoon mode pays:</p><table class="tour-tbl"><tr><td>1st most shares</td><td><b>R6 000</b></td><td class="muted">10 &times; price</td></tr><tr><td>2nd</td><td><b>R3 000</b></td><td class="muted">5 &times;</td></tr><tr><td>3rd</td><td><b>R1 800</b></td><td class="muted">3 &times;</td></tr></table><p>Then everyone holding that company <b>sells</b> at the share price, <b>trades</b> 2 for 1 into the survivor, or <b>keeps</b> them. That is why buying early pays.</p>'},
+    {t:'Safe companies and the end',h:'<ul><li>A company with <b>11 or more tiles is safe</b>. It cannot be swallowed.</li><li>When a company reaches <b>41 tiles</b>, or every company on the board is safe, whoever is playing may <b>end the game</b>.</li><li>Final bonuses are paid, every share is sold, and the <b>most cash wins</b>.</li></ul>'},
+    {t:'Extra rules the host can switch on',h:'<ul><li><b>Founder\'s bonus.</b> Whoever founded a company gets 3 times the share price when it is swallowed, the same as a third-place bonus.</li><li><b>Share offers.</b> On your turn, offer another player cash, above the market price, for some of their shares. They accept or decline.</li><li><b>Secret mode.</b> Hide other players\' shares and the live net worth.</li><li><b>Turn timer.</b> The game plays for you when your time runs out. Use the Nudge button to poke a slow friend.</li><li><b>Payout preview</b> (your own setting). Shows what a merger tile would pay you before you place it.</li></ul><p class="muted">You can reopen this tour any time from the home screen or the menu.</p>'}
+  ];
+}
+var TOUR={i:0};
+function tourRender(){
+  var sl=tourSlides(),s=sl[TOUR.i],dots='';
+  sl.forEach(function(x,k){dots+='<i'+(k<=TOUR.i?' class="on"':'')+'></i>'});
+  $('#tourBody').innerHTML='<h2>'+s.t+'</h2>'+s.h+'<div class="dots">'+dots+'</div>';
+  $('#tourBack').hidden=TOUR.i===0;
+  $('#tourNext').textContent=TOUR.i===sl.length-1?'Done':'Next';
+}
+function tourOpen(){TOUR.i=0;tourRender();$('#tour').hidden=false;store.set('asa-tour','1');try{$('#tourNext').focus()}catch(e){}}
+function tourClose(){$('#tour').hidden=true}
+function renderMnote(s){
+  var el=$('#mnote');
+  if(s.mnote&&s.phase!=='over'){el.innerHTML='<b>What just happened.</b> '+esc(s.mnote);el.hidden=false}else el.hidden=true;
+}
+function timerArm(s){
+  clearTimeout(G.autoT);
+  if(G.mode!=='multi'||!s.rules||!s.rules.timer||s.phase==='over'){G.dl=null;return}
+  var key=s.gid+':'+s.rev;
+  if(!G.dl||G.dl.key!==key)G.dl={key:key,at:Date.now()+s.rules.timer*1000};
+  var a=E.actorOf(s);
+  if(G.isHost&&a>=0&&!s.players[a].bot){
+    G.autoT=setTimeout(function(){
+      var cur=G.state;
+      if(cur&&G.mode==='multi'&&G.isHost&&cur.gid+':'+cur.rev===key){var ns=E.autoPlay(cur,Math.random);if(ns)commit(ns)}
+    },Math.max(0,G.dl.at-Date.now())+400);
+  }
+}
+function clockTick(){
+  var el=$('#clock'),s=G.state;
+  if(!el)return;
+  if(!G.dl||!s||G.mode!=='multi'||s.phase==='over'){el.hidden=true;return}
+  var a=E.actorOf(s),left=Math.max(0,Math.ceil((G.dl.at-Date.now())/1000));
+  var who=(a===G.meIdx)?'You have':(esc(s.players[a].name)+' has');
+  el.hidden=false;el.className='clock'+(left<=10?' urgent':'');
+  el.textContent=who+' '+Math.floor(left/60)+':'+(left%60<10?'0':'')+(left%60);
+}
+setInterval(clockTick,500);
+function sfxNudge(){
+  var ac=audio();
+  if(ac){try{tone(ac,880,0,0.15,0.2,'square');tone(ac,880,0.22,0.15,0.2,'square');tone(ac,1175,0.44,0.25,0.2,'square')}catch(e){}}
+  buzz([200,100,200,100,300]);
+}
+
 /* ---------- multiplayer ---------- */
 var CODE_CHARS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 var WEB_URL='https://jowanhavenga-bot.github.io/aquiresa/';
@@ -1792,7 +1912,9 @@ var mqttNet={
       h.meta(mqMeta(d));h.lobby(d.players);
     };
     MQ.on[ts]=function(s){if(s&&s.players)h.state(s)};
-    var topics=[tl,ts];
+    var topics=[tl,ts],tn=mqT(code,'nudge');
+    MQ.on[tn]=function(m){if(m&&m.to===G.uid&&Date.now()-(m.ts||0)<20000&&h.nudge)h.nudge(m)};
+    topics.push(tn);
     if(isHost){
       topics.push(ti);
       MQ.on[ti]=function(m){if(m)mqHostIn(m)};
@@ -1824,6 +1946,7 @@ var mqttNet={
     await mqPublishLobby();
   },
   push:function(code,s){return mqPub(mqT(code,'state'),s,true)},
+  nudge:function(code,m){return mqPub(mqT(code,'nudge'),m,false)},
   act:function(code,action,rev,gid){return mqPub(mqT(code,'in'),{t:'act',id:G.uid,gid:gid,rev:rev,action:action},false)},
   leave:async function(code,o){
     try{
@@ -1843,7 +1966,7 @@ async function hostGame(){
   if(!G.net||G.busy)return;
   var name=getName();store.set('asa-name',name);
   setBusy(true);toast('Setting up your game…');
-  try{var code=await G.net.host(name,G.tycoon,{shares:G.hide.shares,worth:G.hide.worth,founders:G.hide.founders,offers:G.hide.offers});openRoom(code,true)}catch(e){writeErr(e)}
+  try{var code=await G.net.host(name,G.tycoon,{shares:G.hide.shares,worth:G.hide.worth,founders:G.hide.founders,offers:G.hide.offers,timer:G.hide.timer|0});openRoom(code,true)}catch(e){writeErr(e)}
   setBusy(false);
 }
 async function joinGame(raw){
@@ -1903,6 +2026,7 @@ function openRoom(code,isHost){
       adoptState(E.clone(ns));
     },
     act:function(m){hostAct(m)},
+    nudge:function(m){sfxNudge();toast(String(m.from||'Someone').slice(0,14)+' nudged you. It is your turn.')},
     warn:function(msg){toast(msg)}
   });
 }
@@ -1937,6 +2061,7 @@ function renderLobby(){
   var lh=(G.meta&&G.meta.hide)||{};
   $('#lobbyMode').textContent+=(hideText(lh)?' '+hideText(lh):'');
   $('#lobbyHide').hidden=!G.isHost;
+  Array.prototype.forEach.call(document.querySelectorAll('#lobbyTimer button'),function(b){b.setAttribute('aria-pressed',(+b.dataset.tv)===(+lh.timer|0)?'true':'false')});
   Array.prototype.forEach.call(document.querySelectorAll('#lobbyHide button'),function(b){var k=b.dataset.h;b.setAttribute('aria-pressed',lh[k]?'true':'false');b.textContent=(lh[k]?'On: ':'Off: ')+OPT_LABEL[k]});
   $('#plist').innerHTML=G.lobby.map(function(p){
     var tags=(p.id===hostId?'<span class="badge">host</span>':'')+(p.bot?'<span class="badge">'+aiTag(p)+'</span>':'')+(p.id===G.uid?'<span class="badge">you</span>':'');
@@ -1965,9 +2090,14 @@ async function lobbyAction(a){
     }
   }catch(e){writeErr(e)}
 }
+async function setLobbyTimer(v){
+  if(!G.isHost||!G.meta)return;
+  var o=G.meta.hide||{},h={};['shares','worth','founders','offers'].forEach(function(x){h[x]=!!o[x]});h.timer=v;
+  try{await G.net.setHide(G.code,h);G.meta.hide=h;renderLobby()}catch(e){writeErr(e)}
+}
 async function toggleHide(k){
   if(!G.isHost||!G.meta)return;
-  var h={},o=G.meta.hide||{};['shares','worth','founders','offers'].forEach(function(x){h[x]=!!o[x]});h[k]=!h[k];
+  var h={},o=G.meta.hide||{};['shares','worth','founders','offers'].forEach(function(x){h[x]=!!o[x]});h.timer=+o.timer|0;h[k]=!h[k];
   try{await G.net.setHide(G.code,h);G.meta.hide=h;renderLobby()}catch(e){writeErr(e)}
 }
 async function removeBot(id){
@@ -1980,7 +2110,7 @@ async function rematch(){
     var sl=E.newGame(defsL,null,{tycoon:G.state.tycoon!==false,hide:G.state.hide,rules:G.state.rules});sl.gid=newId();
     G.viewer=-1;G.meIdx=-1;G.sel=null;G.ui={};G.state=sl;saveSolo();onState();return;
   }
-  if(G.mode==='solo'){G.tycoon=(G.state.tycoon!==false);G.hide={shares:!!(G.state.hide&&G.state.hide.shares),worth:!!(G.state.hide&&G.state.hide.worth),founders:!!(G.state.rules&&G.state.rules.founders),offers:!!(G.state.rules&&G.state.rules.offers)};startSolo(G.soloBots);return}
+  if(G.mode==='solo'){G.tycoon=(G.state.tycoon!==false);G.hide={timer:G.hide.timer|0,shares:!!(G.state.hide&&G.state.hide.shares),worth:!!(G.state.hide&&G.state.hide.worth),founders:!!(G.state.rules&&G.state.rules.founders),offers:!!(G.state.rules&&G.state.rules.offers)};startSolo(G.soloBots);return}
   if(!G.isHost||!G.state)return;
   var defs=G.state.players.map(function(p){return {id:p.id,name:p.name,bot:p.bot,pers:p.pers,lvl:p.lvl}});
   var s=E.newGame(defs,null,{tycoon:G.state.tycoon!==false,hide:G.state.hide,rules:G.state.rules});s.gid=newId();
@@ -2024,6 +2154,7 @@ function onState(){
   else if(G.sel!=null&&s.players[G.meIdx].hand.indexOf(G.sel)<0)G.sel=null;
   if(s.phase==='over')recordGame(s);
   sfxCheck(s);
+  timerArm(s);
   render();scheduleBot();
 }
 function render(){renderStatus();renderBoard();renderActions();renderHand();renderMarket();renderPlayers();renderLog();renderEnd()}
@@ -2093,6 +2224,13 @@ function handleAction(a){
       else if(k==='bminus'){c=+arg;if((b[c]||0)>0)b[c]--}
       else{var buys={};for(c=1;c<=7;c++)if(b[c])buys[c]=b[c];G.ui.buy=null;humanAct({type:'buy',buys:buys,end:k==='bend'});return}
       renderActions();return;
+    }
+    case 'nudge':{
+      var an2=E.actorOf(s);if(an2<0||an2===G.meIdx||!G.net.nudge)return;
+      if(Date.now()-(G.lastNudge||0)<15000){toast('You nudged a moment ago. Give them a few seconds.');return}
+      G.lastNudge=Date.now();
+      G.net.nudge(G.code,{to:s.players[an2].id,from:s.players[G.meIdx].name,ts:Date.now()}).then(function(){toast('Nudged '+s.players[an2].name+'.')},function(){toast('Could not send the nudge.')});
+      return;
     }
     case 'oform':{
       var sz0=E.sizes(s.board),c0=0,ci;for(ci=1;ci<=7;ci++)if(sz0[ci]>=2){c0=ci;break}
@@ -2186,6 +2324,7 @@ function renderHand(){
 }
 function renderActions(){
   var s=G.state,el=$('#actions'),a=E.actorOf(s),me=G.meIdx>=0?s.players[G.meIdx]:null,mine=(a===G.meIdx&&a>=0),h='';
+  renderMnote(s);
   if(s.phase==='over'){el.innerHTML=overHtml(s);return}
   if(G.meIdx<0&&G.mode!=='local'){el.innerHTML='<h3>Watching</h3><p class="muted">You joined after this game started, so you can follow along but not play.</p>';return}
   if(s.offer&&mine){el.innerHTML=offerAnswerHtml(s);return}
@@ -2194,6 +2333,7 @@ function renderActions(){
     h='<h3>'+(bot?'<span class="think"></span>':'')+esc(who.name)+(bot?' (AI)':'')+'</h3><p class="muted">'+phaseText(s)+'.</p>';
     if(s.phase==='dispose'||s.phase==='mergePick'||s.phase==='mergeOrder')h+=mergeInfo(s);
     if(s.offer&&s.offer.from===G.meIdx)h+='<p class="note">Your offer: '+money(s.offer.amt)+' for '+s.offer.qty+' '+esc(CH[s.offer.chain].name)+' share'+(s.offer.qty>1?'s':'')+'.</p><button class="btn alt small" data-a="ocancel">Withdraw the offer</button>';
+    if(G.mode==='multi'&&G.net&&G.net.nudge&&!bot&&G.meIdx>=0&&s.phase!=='over')h+='<div class="row" style="margin-top:10px"><button class="btn alt small" data-a="nudge">Nudge '+esc(who.name)+'</button></div>';
     if(G.mode==='multi'&&G.isHost&&!bot)h+='<p class="muted" style="font-size:13px">Player gone quiet?</p><button class="btn alt small" data-a="tobot:'+a+'">Let the AI play for '+esc(who.name)+'</button>';
     el.innerHTML=h;return;
   }
