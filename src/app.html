@@ -732,7 +732,7 @@ async function recSync(keepOpen){
   if(RC.busy){if(keepOpen)RC.keep=true;return}
   RC.busy=true;RC.keep=!!keepOpen;RC.clients=[];RC.seen={};RC.legacy=[];
   if(keepOpen)recStatus('connecting');
-  await Promise.all(['E','H'].map(function(L){
+  await Promise.all(['P','E','H'].map(function(L){
     return recConnect(L).then(function(c){
       RC.clients.push({L:L,c:c});
       c.on('message',function(t,p){if(t.indexOf(REC_OLD)===0){RC.legacy.push({L:L,t:t});return}recIncoming(L,t,p)});
@@ -863,7 +863,7 @@ function makeBots(n,usedNames,idPrefix){
 /* ---------- multiplayer ---------- */
 var CODE_CHARS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 var WEB_URL='https://jowanhavenga-bot.github.io/aquiresa/';
-var BROKERS={E:'wss://broker.emqx.io:8084/mqtt',H:'wss://broker.hivemq.com:8884/mqtt'};
+var BROKERS={P:'wss://mqtt.eclipseprojects.io:443/mqtt',E:'wss://broker.emqx.io:8084/mqtt',H:'wss://broker.hivemq.com:8884/mqtt'};
 var ACT_TYPES=['offer','respond','cancelOffer','place','found','pickSurvivor','pickOrder','dispose','declareEnd','buy'];
 function randChars(n){var s='';for(var i=0;i<n;i++)s+=CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)];return s}
 function normCode(raw){return String(raw||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'')}
@@ -942,11 +942,11 @@ function mqDispatch(topic,payload){
 }
 function mqConnect(letter){
   return new Promise(function(res,rej){
-    var done=false,c;
-    try{c=window.mqtt.connect(BROKERS[letter],{clientId:'asa_'+randChars(10),clean:true,keepalive:30,connectTimeout:7000,reconnectPeriod:2500})}catch(e){rej(e);return}
-    var t=setTimeout(function(){if(!done){done=true;try{c.end(true)}catch(e){}rej(new Error('timeout'))}},8000);
+    var done=false,c,lastErr='';
+    try{c=window.mqtt.connect(BROKERS[letter],{clientId:'asa_'+randChars(10),clean:true,keepalive:30,connectTimeout:5000,reconnectPeriod:2500})}catch(e){rej(e);return}
+    var t=setTimeout(function(){if(!done){done=true;try{c.end(true)}catch(e){}rej(new Error(lastErr||'no answer'))}},6000);
     c.on('message',mqDispatch);
-    c.on('error',function(){});
+    c.on('error',function(e){lastErr=(e&&e.message)?String(e.message).slice(0,40):'error'});
     c.on('offline',function(){if(MQ.h&&MQ.c===c)MQ.h.warn('Connection lost. Trying to reconnect…')});
     c.once('connect',function(){if(done)return;done=true;clearTimeout(t);res(c)});
   });
@@ -1007,10 +1007,10 @@ function mqPrune(){
 var mqttNet={
   kind:'mqtt',guestActs:true,
   host:async function(name,tycoon,hide){
-    var letters=['E','H'],c=null,letter=null,code=null,i,tries;
+    var letters=['P','E','H'],c=null,letter=null,code=null,i,tries,why=[];
     mqEnd();
-    for(i=0;i<letters.length&&!c;i++){try{c=await mqConnect(letters[i]);letter=letters[i]}catch(e){c=null}}
-    if(!c)throw userErr('Could not reach the online relay. Check your connection and try again.');
+    for(i=0;i<letters.length&&!c;i++){try{c=await mqConnect(letters[i]);letter=letters[i]}catch(e){c=null;why.push(letters[i]+': '+((e&&e.message)||'failed'))}}
+    if(!c)throw userErr('Could not reach any online relay ('+why.join(', ')+'). Your network may be blocking it. Try another network or mobile data.');
     MQ.c=c;MQ.letter=letter;MQ.myName=name;
     for(tries=0;tries<6;tries++){
       var cand=letter+randChars(4),d=await mqProbe(cand);
@@ -1027,7 +1027,7 @@ var mqttNet={
     if(!BROKERS[letter])throw userErr('No game found with code '+code+'.');
     mqEnd();
     var c;
-    try{c=await mqConnect(letter)}catch(e){throw userErr('Could not reach the online relay. Check your connection and try again.')}
+    try{c=await mqConnect(letter)}catch(e){throw userErr('Could not reach this game\'s relay ('+((e&&e.message)||'failed')+'). Your network may be blocking it. Try another network or mobile data.')}
     MQ.c=c;MQ.letter=letter;MQ.myName=name;MQ.code=code;
     var d=await mqProbe(code);
     if(!mqFresh(d)){mqEnd();throw userErr('No game found with code '+code+'.')}

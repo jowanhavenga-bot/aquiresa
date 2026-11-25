@@ -58,7 +58,7 @@ FAKE_JS = r"""
   c.publish=function(t,m,o,cb){if(closed){cb&&cb(new Error('closed'));return c}
     post('pub',{topic:t,payload:m,retain:!!(o&&o.retain)}).then(function(){cb&&cb(null)},function(e){cb&&cb(e)});return c};
   c.end=function(){closed=true;post('drop',{})};
-  var dead=(url.indexOf('emqx')>=0&&window.__emqxDown);
+  var dead=((url.indexOf('emqx')>=0||url.indexOf('eclipse')>=0)&&window.__emqxDown);
   window.__urls=(window.__urls||[]).concat([url]);
   if(!dead){setTimeout(function(){fire('connect')},20);
    (function poll(){if(closed)return;fetch('/poll?cid='+cid).then(function(r){return r.json()}).then(function(a){a.forEach(function(m){fire('message',[m.t,m.p])})}).catch(function(){}).then(function(){setTimeout(poll,10)})})();

@@ -17,7 +17,7 @@ with sync_playwright() as p:
     ca,A=mk(br,'Ann'); cb,B=mk(br,'Ben'); cc,C=mk(br,'Cat')
     assert not A.evaluate("()=>document.querySelector('#hostBtn').disabled"),'host disabled'
     A.click('#hostBtn'); A.wait_for_timeout(2500)
-    code=A.inner_text('#lobbyCode'); print('code',code); assert re.fullmatch(r'E[A-Z2-9]{4}',code),code
+    code=A.inner_text('#lobbyCode'); print('code',code); assert re.fullmatch(r'[PEH][A-Z2-9]{4}',code),code
     B.fill('#codeInput',code.lower()); B.click('#joinBtn'); B.wait_for_timeout(1500)
     C.fill('#codeInput',code); C.click('#joinBtn'); C.wait_for_timeout(1500)
     A.wait_for_timeout(500)
