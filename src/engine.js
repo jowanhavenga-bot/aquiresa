@@ -4,6 +4,22 @@
 
   var COLS = 12, ROWS = 9, N = 108, HAND = 6, START_CASH = 6000, SHARES = 25;
   var ROW_L = 'ABCDEFGHI';
+  var EV = null; // active market event {co, d, text}, mirrors state.ev
+  var HCAP_CASH = 1500;
+  var EVENTS = [
+    { co: 6, d: 100, text: 'Vodacom cuts data prices and customers flock in.' },
+    { co: 5, d: -100, text: 'Load shedding hits Nedbank branches.' },
+    { co: 3, d: 100, text: 'Takealot has a Black Friday rush.' },
+    { co: 4, d: -100, text: 'A network outage angers MTN customers.' },
+    { co: 7, d: 100, text: 'Woolworths festive season sales surge.' },
+    { co: 2, d: 100, text: 'Checkers Sixty60 deliveries boom.' },
+    { co: 1, d: -100, text: 'A warehouse strike delays Mr Price stock.' }
+  ];
+  function mk(seed) { // small seeded random generator
+    var a = seed >>> 0;
+    return function () { a = (a + 0x6D2B79F5) >>> 0; var t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  function handSize(s, p) { return HAND + ((s.rules && s.rules.hcap === 'tile' && p.beg) ? 1 : 0); }
 
   // id 1..7. tier 0 cheap, 1 mid, 2 premium.
   var CHAINS = [
@@ -47,7 +63,9 @@
     else if (size <= 30) b = 800;
     else if (size <= 40) b = 900;
     else b = 1000;
-    return b + CHAINS[id].tier * 100;
+    var pr = b + CHAINS[id].tier * 100;
+    if (EV && EV.co === id) pr = Math.max(100, pr + EV.d);
+    return pr;
   }
   function bankLeft(s, c) {
     var n = SHARES;
@@ -163,19 +181,26 @@
     var bag = [], i;
     for (i = 0; i < N; i++) bag.push(i);
     shuffle(bag, rng);
+    var hc = (opts && opts.rules && (opts.rules.hcap === 'tile' || opts.rules.hcap === 'cash')) ? opts.rules.hcap : '';
+    var anyBeg = defs.some(function (d) { return !!d.beg; });
     var players = defs.map(function (d) {
-      return { id: d.id, name: d.name, bot: !!d.bot, pers: d.pers || 'balanced', lvl: d.lvl || 'normal', cash: START_CASH, stocks: [0, 0, 0, 0, 0, 0, 0, 0], hand: [],
+      var c0 = (hc === 'cash' && anyBeg && !d.beg) ? START_CASH - HCAP_CASH : START_CASH;
+      return { id: d.id, name: d.name, bot: !!d.bot, beg: !!d.beg, c0: c0, pers: d.pers || 'balanced', lvl: d.lvl || 'normal', cash: c0, stocks: [0, 0, 0, 0, 0, 0, 0, 0], hand: [],
         st: { spent: 0, bought: 0, proceeds: 0, mbonus: 0, founded: 0, merges: 0, best: { amt: 0, chain: 0, kind: '', final: false } } };
     });
-    var s = { v: 2, rev: 0, tycoon: !(opts && opts.tycoon === false), hide: { shares: !!(opts && opts.hide && opts.hide.shares), worth: !!(opts && opts.hide && opts.hide.worth) }, rules: { founders: !!(opts && opts.rules && opts.rules.founders), offers: !!(opts && opts.rules && opts.rules.offers), timer: ((opts && opts.rules && +opts.rules.timer) | 0) }, mnote: null, founder: {}, oc: 0, offer: null, hist: [], players: players, board: [], bag: bag, discard: [], turn: 0, phase: 'place', pend: null, log: [], over: null };
+    var s = { v: 2, rev: 0, tycoon: !(opts && opts.tycoon === false), hide: { shares: !!(opts && opts.hide && opts.hide.shares), worth: !!(opts && opts.hide && opts.hide.worth) }, rules: { founders: !!(opts && opts.rules && opts.rules.founders), offers: !!(opts && opts.rules && opts.rules.offers), timer: ((opts && opts.rules && +opts.rules.timer) | 0), events: !!(opts && opts.rules && opts.rules.events), hcap: (anyBeg ? hc : '') }, seed: Math.floor(rng() * 2147483646) + 1, round: 1, ev: null, mnote: null, founder: {}, oc: 0, offer: null, hist: [], players: players, board: [], bag: bag, discard: [], turn: 0, phase: 'place', pend: null, log: [], over: null };
     for (i = 0; i < N; i++) s.board.push(null);
     // draw for first move: each draws a tile, it goes on the board unaligned.
     var draws = players.map(function (p) { var t = s.bag.shift(); s.board[t] = 0; return { p: p, t: t }; });
     draws.sort(function (a, b) { return tileKey(a.t) - tileKey(b.t); });
+    EV = null;
+    if (opts && opts.keepOrder) draws.sort(function (a, b) { return players.indexOf(a.p) - players.indexOf(b.p); });
     s.players = draws.map(function (d) { return d.p; });
-    addLog(s, 'Draw for first move: ' + draws.map(function (d) { return d.p.name + ' ' + tileLabel(d.t); }).join(', ') + '.');
+    addLog(s, ((opts && opts.keepOrder) ? 'Seats rotate for the rematch: ' : 'Draw for first move: ') + draws.map(function (d) { return d.p.name + ' ' + tileLabel(d.t); }).join(', ') + '.');
     addLog(s, s.players[0].name + ' goes first.');
-    s.players.forEach(function (p) { while (p.hand.length < HAND) p.hand.push(s.bag.shift()); });
+    s.players.forEach(function (p) { while (p.hand.length < handSize(s, p)) p.hand.push(s.bag.shift()); });
+    if (s.rules.hcap === 'tile') { var bg = s.players.filter(function (p) { return p.beg; }); addLog(s, 'Handicap: ' + bg.map(function (p) { return p.name; }).join(', ') + (bg.length > 1 ? ' hold' : ' holds') + ' an extra tile.'); }
+    if (s.rules.hcap === 'cash') { var ot = s.players.filter(function (p) { return !p.beg; }); addLog(s, 'Handicap: ' + ot.map(function (p) { return p.name; }).join(', ') + ' start' + (ot.length > 1 ? '' : 's') + ' with ' + money(START_CASH - HCAP_CASH) + '.'); }
     s.turn = 0;
     s.hist.push(netWorths(s));
     addLog(s, s.tycoon ? 'Tycoon payouts: the top 3 shareholders are paid on every merger.' : 'Classic payouts: the top 2 shareholders are paid on every merger.');
@@ -214,11 +239,25 @@
     } else s.phase = 'place';
   }
 
+  function rollEvent(s) {
+    var r = mk((s.seed | 0) + (s.round | 0) * 7919);
+    if (r() > 0.55) return;
+    var sz = sizes(s.board), c = EVENTS.filter(function (e) { return sz[e.co] >= 2; });
+    if (!c.length) return;
+    var e = c[Math.floor(r() * c.length)];
+    s.ev = { co: e.co, d: e.d, text: e.text, round: s.round };
+    addLog(s, 'Market event: ' + e.text + ' ' + CHAINS[e.co].name + ' share price ' + (e.d > 0 ? '+' : '-') + money(Math.abs(e.d)) + ' this round.');
+  }
   function endTurn(s) {
     var pl = s.players[s.turn];
-    while (pl.hand.length < HAND && s.bag.length) pl.hand.push(s.bag.shift());
-    s.hist.push(netWorths(s));
+    while (pl.hand.length < handSize(s, pl) && s.bag.length) pl.hand.push(s.bag.shift());
     s.turn = (s.turn + 1) % s.players.length;
+    if (s.turn === 0) {
+      s.round = (s.round || 1) + 1; s.ev = null;
+      if (s.rules && s.rules.events) rollEvent(s);
+    }
+    EV = s.ev || null;
+    s.hist.push(netWorths(s));
     s.pend = null;
     s.phase = 'place';
     beginTurn(s);
@@ -300,6 +339,7 @@
   }
 
   function finalize(s, reason) {
+    s.ev = null; EV = null;
     var sz = sizes(s.board), bonus = s.players.map(function () { return 0; }), sold = s.players.map(function () { return 0; });
     for (var c = 1; c <= 7; c++) {
       if (sz[c] < 1) continue;
@@ -330,6 +370,7 @@
   function projected(s) {
     var c = clone(s);
     finalize(c, 'projection');
+    EV = s.ev || null;
     return c.over.results;
   }
 
@@ -377,8 +418,8 @@
         if (!roi || ratio > roi.roi) roi = { i: i, roi: ratio, invested: st.spent, back: back };
       }
       if (st.bought > 0) {
-        var per = (r2.total - START_CASH) / st.bought;
-        if (!pps || per > pps.v) pps = { i: i, v: per, bought: st.bought, gain: r2.total - START_CASH };
+        var per = (r2.total - (s.players[i].c0 || START_CASH)) / st.bought;
+        if (!pps || per > pps.v) pps = { i: i, v: per, bought: st.bought, gain: r2.total - (s.players[i].c0 || START_CASH) };
       }
       if (!spender || st.spent > spender.spent) spender = { i: i, spent: st.spent };
       if (st.merges > 0 && (!merger || st.merges > merger.n)) merger = { i: i, n: st.merges };
@@ -753,14 +794,16 @@
     return r.state;
   }
 
+  function W(fn) { return function (s) { if (s && s.players) EV = s.ev || null; return fn.apply(null, arguments); }; }
   root.AcquireEngine = {
-    autoPlay: autoPlay,
-    previewMerge: previewMerge, perPlayer: perPlayer,
+    useState: function (s) { EV = (s && s.ev) || null; }, rngFromSeed: mk, EVENTS: EVENTS, HCAP_CASH: HCAP_CASH,
+    autoPlay: W(autoPlay),
+    previewMerge: W(previewMerge), perPlayer: W(perPlayer),
     COLS: COLS, ROWS: ROWS, N: N, HAND: HAND, SHARES: SHARES, CHAINS: CHAINS,
     tileLabel: tileLabel, nbrs: nbrs, sizes: sizes, activeIds: activeIds, price: price,
     bankLeft: bankLeft, analyze: analyze, isPlayable: isPlayable, endCondition: endCondition,
-    computeBonuses: computeBonuses, newGame: newGame, apply: apply, actorOf: actorOf,
-    botAction: botAction, projected: projected, netWorths: netWorths, computeStats: computeStats, floodCount: floodCount, money: money, clone: clone
+    computeBonuses: computeBonuses, newGame: newGame, apply: W(apply), actorOf: actorOf,
+    botAction: W(botAction), projected: W(projected), netWorths: W(netWorths), computeStats: W(computeStats), floodCount: floodCount, money: money, clone: clone
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.AcquireEngine;
 })(typeof window !== 'undefined' ? window : globalThis);

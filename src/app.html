@@ -235,6 +235,25 @@ details.rules li{margin:5px 0;max-width:70ch}
 @media (min-width:1000px){.modes{grid-template-columns:1fr 1fr 1fr}}
 #lobbyHide{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface)}
 #lobbyHide[hidden]{display:none}
+select{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:44px;min-width:0;width:100%}
+.begchk{display:flex;align-items:center;gap:6px;margin:6px 0 0;color:var(--ink);font-size:13px}
+.begchk input{width:20px;height:20px}
+.hcseg{margin-top:2px}
+.dailycard{align-items:center;gap:12px}
+.dailycard h3{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#evnote{border-color:var(--focus)}
+.evtag{font-size:11px;font-weight:700;margin-left:4px}
+.evtag.up{color:var(--good)}.evtag.dn{color:var(--bad)}
+.reactbar{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.reactbar button{min-width:44px;min-height:40px;font-size:20px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);padding:0 8px;box-shadow:0 1px 0 rgba(0,0,0,.28)}
+.reactbar button:active{transform:scale(.92)}
+#rfloat{position:fixed;left:0;right:0;top:calc(58px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;z-index:70}
+#rfloat div{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.3);animation:tup .3s ease-out both}
+#rfloat div b{font-size:22px;margin-left:6px;vertical-align:-2px}
+.statcard{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:10px}
+.statcard div{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px}
+.statcard small{display:block;color:var(--muted);font-size:12px}
+.statcard b{font-family:var(--mono);font-size:15px}
 /* tour scenes */
 .stage{min-height:230px;display:flex;flex-direction:column;justify-content:center;gap:8px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:14px;margin:6px 0 8px}
 .stage .mini{max-width:300px;margin:0 auto}
@@ -270,6 +289,7 @@ details.rules li{margin:5px 0;max-width:70ch}
     </div>
   </header>
 
+  <div id="rfloat" aria-live="polite"></div>
   <div id="tour" hidden role="dialog" aria-modal="true" aria-label="How to play"><div class="card"><div id="tourBody"></div><div class="row" style="justify-content:space-between"><button class="btn alt small" id="tourBack">Back</button><span class="row"><button class="btn alt small" id="tourSkip">Close</button><button class="btn small" id="tourNext">Next</button></span></div></div></div>
   <div id="menu" class="sheet" hidden>
     <button class="btn alt small" id="menuTour">How to play tour</button>
@@ -310,6 +330,16 @@ details.rules li{margin:5px 0;max-width:70ch}
             </div>
           </section>
           <section class="grp">
+            <h3>New extras</h3>
+            <button type="button" class="opt" id="hideEvents" aria-pressed="false"></button>
+            <button type="button" class="opt" id="hideHcap" aria-pressed="false"></button>
+            <div class="seg wrap hcseg" id="hcapSeg" role="group" aria-label="Handicap type" hidden>
+              <button data-v="tile" aria-pressed="true">Beginner gets +1 tile</button><button data-v="cash" aria-pressed="false">Others start R1 500 lower</button>
+            </div>
+            <p class="fine" id="hcapNote" style="margin:0" hidden>Beginners are ticked in the lobby, in pass and play, and in solo it is you.</p>
+            <button type="button" class="opt" id="prefDaily" aria-pressed="true"></button>
+          </section>
+          <section class="grp">
             <h3>Secret mode</h3>
             <button type="button" class="opt" id="hideShares" aria-pressed="false"></button>
             <button type="button" class="opt" id="hideWorth" aria-pressed="false"></button>
@@ -331,9 +361,15 @@ details.rules li{margin:5px 0;max-width:70ch}
             <h3>Just for you</h3>
             <button type="button" class="opt" id="prefSound" aria-pressed="true"></button>
             <button type="button" class="opt" id="prefPreview" aria-pressed="false"></button>
+            <button type="button" class="opt" id="prefReact" aria-pressed="true"></button>
             <p class="fine" style="margin:0">These only change things for you and never change the rules for others.</p>
           </section>
         </div>
+      </div>
+
+      <div class="panel wide row dailycard" id="dailyPanel" hidden style="justify-content:space-between">
+        <div style="min-width:0"><h3 style="margin:0">Daily challenge <span class="badge" id="dailyDate"></span></h3><p class="muted" style="margin:4px 0 0;max-width:60ch" id="dailyInfo"></p></div>
+        <div class="row"><button class="btn" id="dailyBtn">Play today's challenge</button><button class="btn alt" id="dailyBoardBtn">Daily board</button></div>
       </div>
 
       <div class="modes wide">
@@ -409,6 +445,16 @@ details.rules li{margin:5px 0;max-width:70ch}
       </div>
     </section>
 
+    <!-- DAILY BOARD -->
+    <section id="daily" class="rec" hidden>
+      <div class="panel">
+        <div class="row" style="justify-content:space-between"><h2 style="margin:0">Daily board</h2><button class="btn alt small" id="dailyBack">Back</button></div>
+        <p class="fine" style="margin:6px 0 0">Everyone gets the same starting tiles and the same AI opponents. Best final cash counts, and you can try as often as you like. A new challenge starts at midnight South African time. Solo play counts here, and scores are shared by player name, so set your name on the home screen first.</p>
+        <p class="note" id="dailyStatus" style="margin:8px 0 0"></p>
+        <div id="dailyBody"></div>
+      </div>
+    </section>
+
     <!-- LOBBY -->
     <section id="lobby" hidden>
       <div class="panel stack">
@@ -423,6 +469,12 @@ details.rules li{margin:5px 0;max-width:70ch}
             <button type="button" class="opt" data-h="worth" aria-pressed="false"></button>
             <button type="button" class="opt" data-h="founders" aria-pressed="false"></button>
             <button type="button" class="opt" data-h="offers" aria-pressed="false"></button>
+            <button type="button" class="opt" data-h="events" aria-pressed="false"></button>
+            <button type="button" class="opt" data-h="hcap" aria-pressed="false"></button>
+            <div class="seg wrap hcseg" id="lobbyHcap" role="group" aria-label="Handicap type" hidden>
+              <button data-hc="tile" aria-pressed="true">Beginner gets +1 tile</button><button data-hc="cash" aria-pressed="false">Others start R1 500 lower</button>
+            </div>
+            <p class="fine" id="lobbyHcapNote" style="margin:0" hidden>Tap "Beginner" next to a player below to mark who gets the help.</p>
             <div class="optrow">
               <div class="ot"><b>Turn timer</b><small>The game plays for a player who runs out of time.</small></div>
               <div class="stepper" id="lobbyTimerStep" role="group" aria-label="Turn timer"><button type="button" data-d="-1" aria-label="Shorter turn timer">&minus;</button><output id="lobbyTimerVal" aria-live="polite">Off</output><button type="button" data-d="1" aria-label="Longer turn timer">+</button></div>
@@ -443,8 +495,10 @@ details.rules li{margin:5px 0;max-width:70ch}
           <div class="status"><div class="av" id="stAv"></div><div style="min-width:0"><div class="t1" id="stT1"></div><div class="t2" id="stT2"></div></div></div>
           <div class="ticker" id="ticker"></div>
           <div class="clock" id="clock" hidden></div>
+          <div class="reactbar" id="reactBar" hidden></div>
         </div>
         <div id="boardWrap"><div class="board" id="board" aria-label="Game board"></div></div>
+        <div class="panel note" id="evnote" hidden></div>
         <div class="panel note" id="mnote" hidden></div>
         <div class="panel act" id="actions" aria-live="polite"></div>
         <div class="panel" id="handPanel"><p class="tilecap">Your tiles</p><div class="hand" id="hand"></div></div>
@@ -500,7 +554,7 @@ var RULES='<ul>'
 +'<li><b>Ending.</b> Once any company reaches 41 tiles, or every company on the board is safe, the player whose turn it is may end the game. Final bonuses are paid, every share is sold, and the most cash wins.</li>'
 +'</ul>';
 
-var G={mode:null,prefs:{sound:true,preview:false},ai:{lvl:'normal',pers:'mixed'},sfx:null,tycoon:true,hide:{shares:false,worth:false,founders:false,offers:false,timer:0},dl:null,viewer:-1,passFor:-1,localN:2,localAi:0,code:null,isHost:false,state:null,meIdx:-1,meta:null,lobby:[],sel:null,ui:{},botTimer:null,unsubs:[],db:null,uid:null,
+var G={mode:null,prefs:{sound:true,preview:false,daily:true,react:true},ai:{lvl:'normal',pers:'mixed'},sfx:null,tycoon:true,hide:{shares:false,worth:false,founders:false,offers:false,timer:0,events:false,hcap:''},hcapPref:'tile',dl:null,viewer:-1,passFor:-1,localN:2,localAi:0,code:null,isHost:false,state:null,meIdx:-1,meta:null,lobby:[],sel:null,ui:{},botTimer:null,unsubs:[],db:null,uid:null,
   serverState:null,cells:null,soloBots:3,screen:'home',confirmLeave:false,connTimer:null,stateRef:null,metaRef:null,lobbyRef:null,toastTimer:null};
 
 var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},del:function(k){try{localStorage.removeItem(k)}catch(e){}}};
@@ -517,14 +571,15 @@ function chip(c,n){return '<span class="chip" style="background:var(--c'+c+');co
 /* ---------- screens ---------- */
 function showScreen(name){
   G.screen=name;
-  ['home','lobby','game','records'].forEach(function(n){$('#'+n).hidden=(n!==name)});
-  $('#menuBtn').hidden=(name==='home'||name==='records');
-  if(name==='home'||name==='records'){$('#menu').hidden=true}
+  ['home','lobby','game','records','daily'].forEach(function(n){$('#'+n).hidden=(n!==name)});
+  $('#menuBtn').hidden=(name==='home'||name==='records'||name==='daily');
+  if(name==='home'||name==='records'||name==='daily'){$('#menu').hidden=true}
+  if(name==='daily'){renderDaily();dailySync(true)}else if(DL.holding)dailyStop();
   if(name==='records'){renderRecords();recSync(true)}else if(RC.holding)recStop();
   var ti='';
   if(name==='lobby')ti='Lobby '+esc(G.code||'');
   if(name==='game'&&G.mode==='multi')ti='Room '+esc(G.code||'');
-  if(name==='game'&&G.mode==='solo')ti='Solo vs AI';
+  if(name==='game'&&G.mode==='solo')ti=(G.state&&G.state.daily)?'Daily challenge':'Solo vs AI';
   if(name==='game'&&G.mode==='local')ti='Pass and play';
   $('#topinfo').innerHTML=ti;
   window.scrollTo&&window.scrollTo(0,0);
@@ -536,16 +591,22 @@ function buildHome(){
   $('#rulesHome').innerHTML=RULES;$('#rulesGame').innerHTML=RULES;
   var nm=store.get('asa-name');if(nm)$('#nameInput').value=nm;
   if(store.get('asa-mode')==='classic')G.tycoon=false;
-  try{var hh=JSON.parse(store.get('asa-hide')||'{}');G.hide={shares:!!hh.shares,worth:!!hh.worth,founders:!!hh.founders,offers:!!hh.offers,timer:(+hh.timer>=0&&+hh.timer<=300)?(+hh.timer|0):0}}catch(e){}
-  try{var pf=JSON.parse(store.get('asa-prefs')||'{}');G.prefs={sound:pf.sound!==false,preview:!!pf.preview}}catch(e){}
+  try{var hh=JSON.parse(store.get('asa-hide')||'{}');G.hide={shares:!!hh.shares,worth:!!hh.worth,founders:!!hh.founders,offers:!!hh.offers,timer:(+hh.timer>=0&&+hh.timer<=300)?(+hh.timer|0):0,events:!!hh.events,hcap:(hh.hcap==='tile'||hh.hcap==='cash')?hh.hcap:''};if(G.hide.hcap)G.hcapPref=G.hide.hcap}catch(e){}
+  try{var pf=JSON.parse(store.get('asa-prefs')||'{}');G.prefs={sound:pf.sound!==false,preview:!!pf.preview,daily:pf.daily!==false,react:pf.react!==false}}catch(e){}
   try{var ai=JSON.parse(store.get('asa-ai')||'{}');if(['easy','normal','hard'].indexOf(ai.lvl)>=0)G.ai.lvl=ai.lvl;if(['mixed'].concat(PERS_LIST).indexOf(ai.pers)>=0)G.ai.pers=ai.pers}catch(e){}
-  ['Sound','Preview'].forEach(function(k){$('#pref'+k).addEventListener('click',function(){G.prefs[k.toLowerCase()]=!G.prefs[k.toLowerCase()];store.set('asa-prefs',JSON.stringify(G.prefs));setModeUi();if(k==='Sound'&&G.prefs.sound)sfxKaching(false)})});
+  ['Sound','Preview','Daily','React'].forEach(function(k){$('#pref'+k).addEventListener('click',function(){G.prefs[k.toLowerCase()]=!G.prefs[k.toLowerCase()];store.set('asa-prefs',JSON.stringify(G.prefs));setModeUi();if(k==='Sound'&&G.prefs.sound)sfxKaching(false)})});
   ['lvl','pers'].forEach(function(k){Array.prototype.forEach.call(document.querySelectorAll('#'+k+'Seg button'),function(b){b.addEventListener('click',function(){G.ai[k]=b.dataset.v;store.set('asa-ai',JSON.stringify(G.ai));setModeUi()})})});
   $('#recordsBtn').addEventListener('click',function(){showScreen('records')});
+  $('#recBody').addEventListener('change',function(e){if(e.target&&e.target.id==='statSel'){RC.sel=e.target.value;fillStat()}});
   $('#recBack').addEventListener('click',function(){showScreen('home')});
   document.addEventListener('pointerdown',function unlock(){audio();document.removeEventListener('pointerdown',unlock)});
   setModeUi();
-  ['Shares','Worth','Founders','Offers'].forEach(function(k){$('#hide'+k).addEventListener('click',function(){G.hide[k.toLowerCase()]=!G.hide[k.toLowerCase()];store.set('asa-hide',JSON.stringify(G.hide));setModeUi()})});
+  $('#hideHcap').addEventListener('click',function(){G.hide.hcap=G.hide.hcap?'':(G.hcapPref||'tile');store.set('asa-hide',JSON.stringify(G.hide));setModeUi();buildLocalInputs()});
+  Array.prototype.forEach.call(document.querySelectorAll('#hcapSeg button'),function(b){b.addEventListener('click',function(){G.hcapPref=b.dataset.v;G.hide.hcap=b.dataset.v;store.set('asa-hide',JSON.stringify(G.hide));setModeUi()})});
+  $('#dailyBtn').addEventListener('click',startDaily);
+  $('#dailyBoardBtn').addEventListener('click',function(){showScreen('daily')});
+  $('#dailyBack').addEventListener('click',function(){showScreen('home')});
+  ['Shares','Worth','Founders','Offers','Events'].forEach(function(k){$('#hide'+k).addEventListener('click',function(){G.hide[k.toLowerCase()]=!G.hide[k.toLowerCase()];store.set('asa-hide',JSON.stringify(G.hide));setModeUi()})});
   Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'),function(b){b.addEventListener('click',function(){G.tycoon=(b.dataset.m==='tycoon');store.set('asa-mode',G.tycoon?'tycoon':'classic');setModeUi()})});
   var saved=store.get('asa-solo');
   if(saved){try{var o=JSON.parse(saved);if(o&&o.state&&o.state.phase!=='over')$('#resumeBtn').hidden=false}catch(e){}}
@@ -580,15 +641,16 @@ function buildHome(){
   $('#actions').addEventListener('click',function(e){var b=e.target.closest('[data-a]');if(!b||b.disabled)return;handleAction(b.dataset.a)});
   $('#actions').addEventListener('change',function(e){var t=e.target.closest('[data-o]');if(!t||!G.ui.offer||!G.state)return;G.ui.offer[t.dataset.o]=+t.value;if(t.dataset.o==='chain'){G.ui.offer.qty=1}offerDefaults(G.state,G.ui.offer);renderActions()});
   $('#lobbyBtns').addEventListener('click',function(e){var b=e.target.closest('[data-l]');if(!b||b.disabled)return;lobbyAction(b.dataset.l)});
-  $('#lobbyHide').addEventListener('click',function(e){var t=e.target.closest('[data-d]');if(t){if(t.disabled)return;var lh0=(G.meta&&G.meta.hide)||{};setLobbyTimer(timerStepV(+lh0.timer|0,+t.dataset.d));return}var b=e.target.closest('[data-h]');if(b)toggleHide(b.dataset.h)});
+  $('#lobbyHide').addEventListener('click',function(e){var hc=e.target.closest('[data-hc]');if(hc){G.hcapPref=hc.dataset.hc;setLobbyHide({hcap:hc.dataset.hc});return}var t=e.target.closest('[data-d]');if(t){if(t.disabled)return;var lh0=(G.meta&&G.meta.hide)||{};setLobbyTimer(timerStepV(+lh0.timer|0,+t.dataset.d));return}var b=e.target.closest('[data-h]');if(b)toggleHide(b.dataset.h)});
   $('#timerStep').addEventListener('click',function(e){var t=e.target.closest('[data-d]');if(!t||t.disabled)return;G.hide.timer=timerStepV(G.hide.timer|0,+t.dataset.d);store.set('asa-hide',JSON.stringify(G.hide));setModeUi()});
   $('#tourBtn').addEventListener('click',tourOpen);$('#menuTour').addEventListener('click',function(){$('#menu').hidden=true;tourOpen()});
   $('#tourNext').addEventListener('click',function(){if(TOUR.i>=tourSlides().length-1)tourClose();else{TOUR.i++;tourRender()}});
   $('#tourBack').addEventListener('click',function(){if(TOUR.i>0){TOUR.i--;tourRender()}});
   $('#tourSkip').addEventListener('click',tourClose);
+  $('#reactBar').addEventListener('click',function(e){var b=e.target.closest('[data-re]');if(b)sendReact(+b.dataset.re)});
   $('#tourBody').addEventListener('click',function(e){var b=e.target.closest('[data-fr]');if(!b)return;tourStop();tourShow(+b.dataset.fr)});
   $('#tour').addEventListener('click',function(e){if(e.target.id==='tour')tourClose()});
-  $('#plist').addEventListener('click',function(e){var b=e.target.closest('[data-rm]');if(!b)return;removeBot(b.dataset.rm)});
+  $('#plist').addEventListener('click',function(e){var g=e.target.closest('[data-beg]');if(g){toggleBeg(g.dataset.beg);return}var b=e.target.closest('[data-rm]');if(!b)return;removeBot(b.dataset.rm)});
   var cells='';for(var t=0;t<108;t++)cells+='<div class="cell" data-t="'+t+'"></div>';
   $('#board').innerHTML=cells;G.cells=Array.prototype.slice.call($('#board').children);
 }
@@ -598,7 +660,11 @@ var OPT_TXT={
   founders:['Founder\'s bonus','Whoever founded a company gets 3 times its share price when it is swallowed.'],
   offers:['Share offers','On your turn, offer another player cash for some of their shares.'],
   sound:['Sound and vibration','A "ka-ching" and a buzz when you get a payout.'],
-  preview:['Payout preview','See what a merger tile would pay you before you place it.']};
+  preview:['Payout preview','See what a merger tile would pay you before you place it.'],
+  events:['Company events','Random South African news can raise or cut one company\'s share price by R100 for a round.'],
+  hcap:['Handicap','Level the field: beginners get an extra tile, or everyone else starts with less cash.'],
+  daily:['Daily challenge','A new game every day with the same tiles for everyone, and a daily board for the best final cash.'],
+  react:['Emoji reactions','Send and see quick emoji reactions in online games.']};
 function optFill(el,k,on){
   var t=OPT_TXT[k];
   el.setAttribute('aria-pressed',on?'true':'false');
@@ -613,7 +679,7 @@ function stepUi(wrap,out,v){
 function hideText(h){
   var a=[];if(h&&h.shares)a.push('other players\' shares are hidden');if(h&&h.worth)a.push('live net worth is hidden');
   var t=a.length?'Secret mode: '+a.join(' and ')+'. Everything is revealed when the game ends.':'';
-  var r=[];if(h&&h.founders)r.push('founder\'s bonus');if(h&&h.offers)r.push('share offers');if(h&&h.timer)r.push('a '+h.timer+' second turn timer');
+  var r=[];if(h&&h.founders)r.push('founder\'s bonus');if(h&&h.offers)r.push('share offers');if(h&&h.timer)r.push('a '+h.timer+' second turn timer');if(h&&h.events)r.push('company events');if(h&&h.hcap)r.push(h.hcap==='tile'?'handicap (beginners hold an extra tile)':'handicap (the others start R1 500 lower)');
   return t+(r.length?(t?' ':'')+'Extra rules on: '+r.join(' and ')+'.':'');
 }
 function setModeUi(){
@@ -625,6 +691,12 @@ function setModeUi(){
   optFill($('#hideShares'),'shares',!!G.hide.shares);optFill($('#hideWorth'),'worth',!!G.hide.worth);
   optFill($('#hideFounders'),'founders',!!G.hide.founders);optFill($('#hideOffers'),'offers',!!G.hide.offers);
   stepUi('#timerStep','#timerVal',G.hide.timer);
+  optFill($('#hideEvents'),'events',!!G.hide.events);optFill($('#hideHcap'),'hcap',!!G.hide.hcap);
+  optFill($('#prefDaily'),'daily',!!G.prefs.daily);optFill($('#prefReact'),'react',!!G.prefs.react);
+  $('#hcapSeg').hidden=!G.hide.hcap;$('#hcapNote').hidden=!G.hide.hcap;
+  Array.prototype.forEach.call(document.querySelectorAll('#hcapSeg button'),function(b){b.setAttribute('aria-pressed',b.dataset.v===G.hide.hcap?'true':'false')});
+  Array.prototype.forEach.call(document.querySelectorAll('#localNames .begchk'),function(el){el.hidden=!G.hide.hcap});
+  $('#dailyPanel').hidden=!G.prefs.daily;if(G.prefs.daily)dailyUi();
   $('#hideNote').textContent=(G.hide.shares||G.hide.worth)?hideText({shares:G.hide.shares,worth:G.hide.worth}):'Off by default. Your own shares and cash always stay visible to you.';
   Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'),function(b){b.setAttribute('aria-pressed',(b.dataset.m==='tycoon')===G.tycoon?'true':'false')});
   $('#modeNote').textContent=G.tycoon?'The top 3 shareholders are paid on every merger and at the end: 10x, 5x and 3x the share price.':'The top 2 shareholders are paid on every merger and at the end: 10x and 5x the share price.';
@@ -663,12 +735,14 @@ function checkHash(){
 /* ---------- pass and play ---------- */
 function buildLocalInputs(){
   var box=$('#localNames'),old=[],saved=[],i;
-  Array.prototype.forEach.call(box.querySelectorAll('input'),function(x){old.push(x.value)});
+  var oldB=[];
+  Array.prototype.forEach.call(box.querySelectorAll('input[type=text]'),function(x){old.push(x.value)});
+  Array.prototype.forEach.call(box.querySelectorAll('input[type=checkbox]'),function(x){oldB.push(x.checked)});
   try{saved=JSON.parse(store.get('asa-lnames')||'[]')}catch(e){saved=[]}
   var h='';
   for(i=0;i<G.localN;i++){
     var v=old[i]!==undefined?old[i]:(typeof saved[i]==='string'&&!/^Player \d$/.test(saved[i])?saved[i]:'');
-    h+='<div><label for="lname'+i+'">Player '+(i+1)+'</label><input type="text" id="lname'+i+'" maxlength="14" autocomplete="off" placeholder="Player '+(i+1)+'" value="'+esc(v)+'"></div>';
+    h+='<div><label for="lname'+i+'">Player '+(i+1)+'</label><input type="text" id="lname'+i+'" maxlength="14" autocomplete="off" placeholder="Player '+(i+1)+'" value="'+esc(v)+'"><label class="begchk"'+(G.hide.hcap?'':' hidden')+'><input type="checkbox" id="lbeg'+i+'"'+(oldB[i]?' checked':'')+'> Beginner</label></div>';
   }
   box.innerHTML=h;
 }
@@ -687,7 +761,7 @@ function startLocal(){
   for(i=0;i<n;i++){var inp=$('#lname'+i);names.push(((inp&&inp.value)||'').trim().slice(0,14)||('Player '+(i+1)))}
   store.set('asa-lnames',JSON.stringify(names));
   var used=[],defs=[];
-  names.forEach(function(nm,k){var u=nm,j=2;while(used.indexOf(u.toLowerCase())>=0)u=nm+' '+(j++);used.push(u.toLowerCase());defs.push({id:'h'+k,name:u,bot:false})});
+  names.forEach(function(nm,k){var u=nm,j=2;while(used.indexOf(u.toLowerCase())>=0)u=nm+' '+(j++);used.push(u.toLowerCase());var cb=$('#lbeg'+k);defs.push({id:'h'+k,name:u,bot:false,beg:!!(G.hide.hcap&&cb&&cb.checked)})});
   makeBots(ai,used).forEach(function(b){defs.push(b)});
   var s=E.newGame(defs,null,{tycoon:G.tycoon,hide:G.hide,rules:G.hide});s.gid=newId();
   G.mode='local';G.state=s;G.viewer=-1;G.meIdx=-1;G.sel=null;G.ui={};
@@ -734,7 +808,7 @@ function confirmPass(){
 /* ---------- solo ---------- */
 function startSolo(nBots){
   var name=getName();store.set('asa-name',name);
-  var defs=[{id:'you',name:name,bot:false}].concat(makeBots(nBots,[name]));
+  var defs=[{id:'you',name:name,bot:false,beg:!!G.hide.hcap}].concat(makeBots(nBots,[name]));
   var s=E.newGame(defs,null,{tycoon:G.tycoon,hide:G.hide,rules:G.hide});s.gid=newId();
   G.mode='solo';G.state=s;G.meIdx=s.players.findIndex(function(p){return p.id==='you'});G.soloBots=nBots;G.sel=null;G.ui={};
   saveSolo();showScreen('game');onState();
@@ -891,9 +965,175 @@ function renderRecords(){
   h+='<h3>Wins and games</h3><ol>';
   rows.slice(0,10).forEach(function(e,i){h+='<li><span class="rk">'+(i+1)+'.</span><span class="nm">'+esc(e.n)+'<span class="sub">'+e.gs.length+' game'+(e.gs.length>1?'s':'')+' &middot; '+Math.round(100*e.ws.length/e.gs.length)+'% wins</span></span><span class="vl">'+e.ws.length+' win'+(e.ws.length===1?'':'s')+'</span></li>'});
   h+='</ol>';
+  var names=es.filter(function(e){return e.gs.length}).sort(function(a,b){return a.n.toLowerCase()<b.n.toLowerCase()?-1:1});
+  if(names.length){
+    if(!RC.sel||!o.p[RC.sel])RC.sel=recKey(names[0].n);
+    h+='<h3>Player stats</h3><label for="statSel">Pick a player</label><select id="statSel">'+names.map(function(e){return '<option value="'+esc(recKey(e.n))+'"'+(recKey(e.n)===RC.sel?' selected':'')+'>'+esc(e.n)+'</option>'}).join('')+'</select><div id="statCard"></div>';
+  }
   $('#recBody').innerHTML=h;
+  fillStat();
 }
 function ordN(n){return n+(n%100>=11&&n%100<=13?'th':n%10===1?'st':n%10===2?'nd':n%10===3?'rd':'th')}
+
+
+/* ---------- emoji reactions ---------- */
+var REACTS=['\u{1F44F}','\u{1F602}','\u{1F631}','\u{1F525}','\u{1F4B0}','\u{1F634}'];
+function renderReact(){
+  var bar=$('#reactBar'),on=G.mode==='multi'&&G.prefs.react&&G.net&&G.net.react&&G.state&&G.meIdx>=0&&G.state.phase!=='over';
+  bar.hidden=!on;
+  if(on&&!bar.firstChild)bar.innerHTML=REACTS.map(function(e,i){return '<button type="button" data-re="'+i+'" aria-label="Send reaction '+e+'">'+e+'</button>'}).join('');
+}
+function showReact(m){
+  if(!G.prefs.react||!m)return;
+  var e=String(m.e||'');if(REACTS.indexOf(e)<0)return;
+  var d=document.createElement('div');
+  d.innerHTML='<span></span><b></b>';d.firstChild.textContent=String(m.from||'Someone').slice(0,14);d.lastChild.textContent=e;
+  var box=$('#rfloat');box.appendChild(d);
+  while(box.children.length>4)box.removeChild(box.firstChild);
+  setTimeout(function(){if(d.parentNode)d.parentNode.removeChild(d)},3500);
+}
+function sendReact(i){
+  var e=REACTS[i];if(!e||!G.net||!G.net.react||G.meIdx<0)return;
+  if(Date.now()-(G.lastReact||0)<1500)return;
+  G.lastReact=Date.now();
+  var me=G.state.players[G.meIdx].name;
+  showReact({from:'You',e:e});
+  G.net.react(G.code,{id:G.uid,from:me,e:e,ts:Date.now()}).catch(function(){});
+}
+
+/* ---------- daily challenge ---------- */
+var DAILY_T='acquire-sa/v2/daily/',DL={clients:[],seen:{},busy:false,holding:false,again:false};
+function dailyDate(){return new Date(Date.now()+7200000).toISOString().slice(0,10)}
+function dailyPrev(d){var t=new Date(d+'T00:00:00Z');t.setUTCDate(t.getUTCDate()-1);return t.toISOString().slice(0,10)}
+function dailyNice(d){try{return new Date(d+'T00:00:00Z').toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'})}catch(e){return d}}
+function hashStr(str){var h=2166136261;for(var i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+function dailyTopic(d,n){var k=recKey(n),h='';for(var i=0;i<k.length;i++)h+=k.charCodeAt(i).toString(16);return DAILY_T+d+'/'+h}
+function dailyLoad(){
+  try{var o=JSON.parse(store.get('asa-daily')||'null');if(o&&o.v===1&&o.d&&typeof o.d==='object')return o}catch(e){}
+  return {v:1,d:{},g:[]};
+}
+function dailySave(o){
+  var ks=Object.keys(o.d).sort();while(ks.length>4){delete o.d[ks.shift()]}
+  if(o.g.length>30)o.g=o.g.slice(-30);
+  store.set('asa-daily',JSON.stringify(o));
+}
+function dailyAdd(o,date,n,c){
+  if(!/^\d{4}-\d\d-\d\d$/.test(date)||typeof n!=='string'||!(typeof c==='number'&&isFinite(c)&&c>=0&&c<=1e7))return false;
+  n=n.trim().slice(0,14);if(!n)return false;c=Math.round(c);
+  var d=o.d[date]||(o.d[date]={b:{},tries:0}),k=recKey(n),cur=d.b[k];
+  if(!cur||c>cur.c){d.b[k]={n:n,c:c};return true}
+  return false;
+}
+function dailyUi(){
+  var o=dailyLoad(),t=dailyDate(),d=o.d[t],k=recKey(getName()),mine=d&&d.b[k];
+  $('#dailyDate').textContent=dailyNice(t);
+  $('#dailyInfo').textContent='Same tiles and same AI opponents for everyone today. '+(mine?'Your best today: '+E.money(mine.c)+(d.tries?' in '+d.tries+' tr'+(d.tries===1?'y':'ies'):'')+'.':'You have not played today yet.');
+}
+function startDaily(){
+  var date=dailyDate(),name=getName();store.set('asa-name',name);
+  var rng=E.rngFromSeed(hashStr('acquire-sa-daily-'+date)),pool=PERS_LIST.slice(),i,j,t;
+  for(i=pool.length-1;i>0;i--){j=Math.floor(rng()*(i+1));t=pool[i];pool[i]=pool[j];pool[j]=t}
+  var defs=[{id:'you',name:name,bot:false}],used=[name.toLowerCase()];
+  pool.slice(0,3).forEach(function(pe,k){
+    var list=PERS_NAMES[pe],nm=list[Math.floor(rng()*list.length)];
+    defs.push({id:'dbot'+k,name:nm,bot:true,pers:pe,lvl:'normal'});
+  });
+  defs.slice(1).forEach(function(d){if(d.name.toLowerCase()===name.toLowerCase())defs[0].name=name+' 2'});
+  var s=E.newGame(defs,rng,{tycoon:true,hide:{},rules:{}});s.gid=newId();s.daily=date;
+  G.mode='solo';G.state=s;G.meIdx=s.players.findIndex(function(p){return p.id==='you'});G.soloBots=3;G.sel=null;G.ui={};
+  saveSolo();showScreen('game');onState();
+}
+function dailyFinish(s){
+  if(!s.daily||s.phase!=='over'||!s.gid||G.mode!=='solo')return;
+  var o=dailyLoad();if(o.g.indexOf(s.gid)>=0)return;
+  o.g.push(s.gid);
+  var me=s.players.findIndex(function(p){return p.id==='you'});if(me<0)return;
+  var name=s.players[me].name,total=s.over.results[me].total;
+  var d=o.d[s.daily]||(o.d[s.daily]={b:{},tries:0});d.tries=(d.tries||0)+1;
+  if(name!=='Player'){dailyAdd(o,s.daily,name,total)}
+  dailySave(o);
+  if(name!=='Player')dailySync(false);
+}
+function dailyStatus(kind){
+  var el=$('#dailyStatus');if(!el)return;
+  var m={local:'Shared boards are only available on the web version. Showing what this device has seen.',connecting:'Connecting to the daily board…',live:'Live: shared with everyone who plays the web version.',offline:'Could not reach the shared board. Showing what this device has seen.'};
+  el.textContent=m[kind]||'';
+}
+function dailyIncoming(L,topic,payload){
+  var m=/^acquire-sa\/v2\/daily\/(\d{4}-\d\d-\d\d)\/[0-9a-f]+$/.exec(topic);if(!m)return;
+  var e;try{e=JSON.parse(payload.toString())}catch(x){return}
+  if(!e||typeof e.n!=='string'||typeof e.c!=='number')return;
+  DL.seen[L+topic]=e.c;
+  var o=dailyLoad();
+  if(dailyAdd(o,m[1],e.n,e.c)){dailySave(o);if(G.screen==='daily'){clearTimeout(DL.rt);DL.rt=setTimeout(renderDaily,300)}}
+}
+function dailyPublish(){
+  var o=dailyLoad();
+  DL.clients.forEach(function(cl){
+    Object.keys(o.d).forEach(function(date){
+      var b=o.d[date].b;
+      Object.keys(b).forEach(function(k){
+        var e=b[k],t=dailyTopic(date,e.n);
+        if((DL.seen[cl.L+t]||-1)>=e.c)return;
+        DL.seen[cl.L+t]=e.c;
+        try{cl.c.publish(t,JSON.stringify({n:e.n,c:e.c}),{qos:1,retain:true})}catch(x){}
+      });
+    });
+  });
+}
+async function dailySync(keepOpen){
+  if(!window.mqtt||!window.mqtt.connect){if(keepOpen)dailyStatus('local');return}
+  if(DL.busy){DL.again=true;if(keepOpen)DL.keep=true;return}
+  DL.busy=true;DL.keep=!!keepOpen;DL.clients=[];DL.seen={};DL.again=false;
+  if(keepOpen)dailyStatus('connecting');
+  var today=dailyDate(),dates=[today,dailyPrev(today)];
+  await Promise.all(['P','E','H'].map(function(L){
+    return recConnect(L).then(function(c){
+      DL.clients.push({L:L,c:c});
+      c.on('message',function(t,p){dailyIncoming(L,t,p)});
+      return new Promise(function(r){c.subscribe(dates.map(function(d){return DAILY_T+d+'/+'}),{qos:1},function(){r()})});
+    },function(){});
+  }));
+  if(!DL.clients.length){DL.busy=false;if(G.screen==='daily')dailyStatus('offline');return}
+  if(G.screen==='daily')dailyStatus('live');
+  await delay(2200);
+  dailyPublish();
+  await delay(700);
+  if(DL.keep&&G.screen==='daily'){DL.busy=false;DL.holding=true;return}
+  dailyStop();
+  if(DL.again){DL.again=false;dailySync(false)}
+}
+function dailyStop(){
+  DL.clients.forEach(function(cl){try{cl.c.end(true)}catch(e){}});
+  DL.clients=[];DL.busy=false;DL.holding=false;DL.keep=false;clearTimeout(DL.rt);
+}
+function renderDaily(){
+  var o=dailyLoad(),t=dailyDate(),me=recKey(getName()),h='';
+  function list(date,limit){
+    var b=(o.d[date]&&o.d[date].b)||{},rows=Object.keys(b).map(function(k){return {k:k,e:b[k]}}).sort(function(x,y){return y.e.c-x.e.c});
+    if(!rows.length)return '<p class="muted">Nobody has posted a score yet.</p>';
+    var s='<ol>';
+    rows.slice(0,limit).forEach(function(r,i){s+='<li'+(r.k===me?' style="outline:2px solid var(--focus);outline-offset:-2px"':'')+'><span class="rk">'+(i+1)+'.</span><span class="nm">'+esc(r.e.n)+(r.k===me?' <span class="badge">you</span>':'')+'</span><span class="vl">'+esc(E.money(r.e.c))+'</span></li>'});
+    return s+'</ol>';
+  }
+  h+='<h3>Today, '+esc(dailyNice(t))+': top 20</h3>'+list(t,20);
+  h+='<h3>Yesterday, '+esc(dailyNice(dailyPrev(t)))+': top 5</h3>'+list(dailyPrev(t),5);
+  h+='<div class="row" style="margin-top:12px"><button class="btn" id="dailyPlay2">Play today\'s challenge</button></div>';
+  $('#dailyBody').innerHTML=h;
+  var b=$('#dailyPlay2');if(b)b.addEventListener('click',startDaily);
+}
+
+/* ---------- player stats ---------- */
+function fillStat(){
+  var o=recLoad(),e=o.p[RC.sel],box=$('#statCard');if(!box)return;
+  if(!e){box.innerHTML='';return}
+  function c(l,v){return '<div><small>'+l+'</small><b>'+v+'</b></div>'}
+  var g=e.gs.length,w=e.ws.length;
+  box.innerHTML='<div class="statcard">'+c('Games',g)+c('Wins',w)+c('Win rate',g?Math.round(100*w/g)+'%':'-')+
+    c('Best finish',e.t?esc(E.money(e.t.v)):'-')+c('Best win margin',e.m?'+'+esc(E.money(e.m.v)):'-')+
+    c('Biggest payout',e.p?esc(E.money(e.p.v))+(e.p.c&&CH[e.p.c]?' ('+esc(CH[e.p.c].name)+')':''):'-')+
+    c('Best comeback',e.cb?ordN(e.cb.f)+' &rarr; '+ordN(e.cb.to):'-')+'</div>';
+}
 
 /* ---------- sound and vibration ---------- */
 var AC=null;
@@ -1021,7 +1261,10 @@ function tourSlides(){
         {c:['Share offers'],cap:'Offer another player cash, above market price, for some of their shares.'},
         {c:['Secret mode'],cap:'Hide other players\' shares and the live net worth.'},
         {c:['Turn timer','Nudge'],cap:'The game plays for you when time runs out. Nudge a slow friend.'},
-        {c:['Payout preview'],cap:'Your own setting: see what a merger tile would pay you first.'}]}
+        {c:['Payout preview'],cap:'Your own setting: see what a merger tile would pay you first.'},
+        {c:['Company events'],cap:'Random news can move one company\'s share price by R100 for a round.'},
+        {c:['Handicap'],cap:'Beginners get an extra tile, or the others start with less cash.'},
+        {c:['Daily challenge'],cap:'The same game for everyone each day. Post your best cash on the daily board.'}]}
   ];
 }
 var TOUR={i:0,f:0,tm:null};
@@ -1061,6 +1304,8 @@ function tourOpen(){TOUR.i=0;tourRender();$('#tour').hidden=false;store.set('asa
 function tourClose(){tourStop();$('#tour').hidden=true}
 function renderMnote(s){
   var el=$('#mnote');
+  var ev=$('#evnote');
+  if(s.ev&&s.phase!=='over'){ev.innerHTML='<b>Market event.</b> '+esc(s.ev.text)+' '+esc(CH[s.ev.co].name)+' shares are '+(s.ev.d>0?'up ':'down ')+esc(E.money(Math.abs(s.ev.d)))+' until the end of this round.';ev.hidden=false}else ev.hidden=true;
   if(s.mnote&&s.phase!=='over'){el.innerHTML='<b>What just happened.</b> '+esc(s.mnote);el.hidden=false}else el.hidden=true;
 }
 function timerArm(s){
@@ -1284,6 +1529,9 @@ var mqttNet={
     var topics=[tl,ts],tn=mqT(code,'nudge');
     MQ.on[tn]=function(m){if(m&&m.to===G.uid&&Date.now()-(m.ts||0)<20000&&h.nudge)h.nudge(m)};
     topics.push(tn);
+    var tr=mqT(code,'react');
+    MQ.on[tr]=function(m){if(m&&m.id!==G.uid&&Date.now()-(m.ts||0)<20000&&h.react)h.react(m)};
+    topics.push(tr);
     if(isHost){
       topics.push(ti);
       MQ.on[ti]=function(m){if(m)mqHostIn(m)};
@@ -1316,6 +1564,7 @@ var mqttNet={
   },
   push:function(code,s){return mqPub(mqT(code,'state'),s,true)},
   nudge:function(code,m){return mqPub(mqT(code,'nudge'),m,false)},
+  react:function(code,m){return mqPub(mqT(code,'react'),m,false)},
   act:function(code,action,rev,gid){return mqPub(mqT(code,'in'),{t:'act',id:G.uid,gid:gid,rev:rev,action:action},false)},
   leave:async function(code,o){
     try{
@@ -1335,7 +1584,7 @@ async function hostGame(){
   if(!G.net||G.busy)return;
   var name=getName();store.set('asa-name',name);
   setBusy(true);toast('Setting up your game…');
-  try{var code=await G.net.host(name,G.tycoon,{shares:G.hide.shares,worth:G.hide.worth,founders:G.hide.founders,offers:G.hide.offers,timer:G.hide.timer|0});openRoom(code,true)}catch(e){writeErr(e)}
+  try{var code=await G.net.host(name,G.tycoon,hideObj(G.hide));openRoom(code,true)}catch(e){writeErr(e)}
   setBusy(false);
 }
 async function joinGame(raw){
@@ -1395,6 +1644,7 @@ function openRoom(code,isHost){
       adoptState(E.clone(ns));
     },
     act:function(m){hostAct(m)},
+    react:function(m){showReact(m)},
     nudge:function(m){sfxNudge();toast(String(m.from||'Someone').slice(0,14)+' nudged you. It is your turn.')},
     warn:function(msg){toast(msg)}
   });
@@ -1432,9 +1682,14 @@ function renderLobby(){
   $('#lobbyHide').hidden=!G.isHost;
   stepUi('#lobbyTimerStep','#lobbyTimerVal',+lh.timer|0);
   Array.prototype.forEach.call(document.querySelectorAll('#lobbyHide [data-h]'),function(b){var k=b.dataset.h;if(OPT_TXT[k])optFill(b,k,!!lh[k])});
+  var begL=Array.isArray(lh.beg)?lh.beg:[];
+  $('#lobbyHcap').hidden=!lh.hcap;$('#lobbyHcapNote').hidden=!lh.hcap;
+  Array.prototype.forEach.call(document.querySelectorAll('#lobbyHcap button'),function(b){b.setAttribute('aria-pressed',b.dataset.hc===lh.hcap?'true':'false')});
   $('#plist').innerHTML=G.lobby.map(function(p){
-    var tags=(p.id===hostId?'<span class="badge">host</span>':'')+(p.bot?'<span class="badge">'+aiTag(p)+'</span>':'')+(p.id===G.uid?'<span class="badge">you</span>':'');
+    var isBeg=begL.indexOf(p.id)>=0;
+    var tags=(p.id===hostId?'<span class="badge">host</span>':'')+(p.bot?'<span class="badge">'+aiTag(p)+'</span>':'')+(p.id===G.uid?'<span class="badge">you</span>':'')+((lh.hcap&&isBeg&&!G.isHost)?'<span class="badge">beginner</span>':'');
     var rm=(G.isHost&&p.bot)?'<button class="btn alt small" data-rm="'+esc(p.id)+'" aria-label="Remove '+esc(p.name)+'">Remove</button>':'';
+    if(G.isHost&&lh.hcap&&!p.bot)rm='<button class="btn alt small" data-beg="'+esc(p.id)+'" aria-pressed="'+(isBeg?'true':'false')+'" aria-label="Mark '+esc(p.name)+' as beginner">'+(isBeg?'&#10003; Beginner':'Beginner')+'</button>'+rm;
     return '<li><div class="av" style="width:30px;height:30px;font-size:14px">'+initial(p.name)+'</div><span class="nm">'+esc(p.name)+'</span>'+tags+rm+'</li>';
   }).join('');
   $('#lobbyBtns').innerHTML=G.isHost?
@@ -1452,37 +1707,54 @@ async function lobbyAction(a){
       await G.net.lobbyAdd(G.code,nb);
     }else if(a==='start'){
       if(G.lobby.length<2){toast('You need at least 2 players.');return}
-      var defs=G.lobby.slice(0,6).map(function(p){return {id:p.id,name:p.name,bot:p.bot,pers:p.pers,lvl:p.lvl}});
+      var begS=hideObj(G.meta&&G.meta.hide).beg,defs=G.lobby.slice(0,6).map(function(p){return {id:p.id,name:p.name,bot:p.bot,pers:p.pers,lvl:p.lvl,beg:(!p.bot&&begS.indexOf(p.id)>=0)}});
       var s=E.newGame(defs,null,{tycoon:!(G.meta&&G.meta.tycoon===false),hide:(G.meta&&G.meta.hide)||{},rules:(G.meta&&G.meta.hide)||{}});s.gid=newId();
       await G.net.start(G.code,s);
       if(G.net.kind==='mqtt')adoptState(s);
     }
   }catch(e){writeErr(e)}
 }
-async function setLobbyTimer(v){
+function hideObj(o,ch){
+  o=o||{};
+  var h={shares:!!o.shares,worth:!!o.worth,founders:!!o.founders,offers:!!o.offers,events:!!o.events,hcap:(o.hcap==='tile'||o.hcap==='cash')?o.hcap:'',timer:+o.timer|0,beg:Array.isArray(o.beg)?o.beg.slice(0,6).map(String):[]};
+  if(ch)for(var k in ch)h[k]=ch[k];
+  return h;
+}
+async function setLobbyHide(ch){
   if(!G.isHost||!G.meta)return;
-  var o=G.meta.hide||{},h={};['shares','worth','founders','offers'].forEach(function(x){h[x]=!!o[x]});h.timer=v;
+  var h=hideObj(G.meta.hide,ch);
   try{await G.net.setHide(G.code,h);G.meta.hide=h;renderLobby()}catch(e){writeErr(e)}
 }
+async function setLobbyTimer(v){return setLobbyHide({timer:v})}
 async function toggleHide(k){
   if(!G.isHost||!G.meta)return;
-  var h={},o=G.meta.hide||{};['shares','worth','founders','offers'].forEach(function(x){h[x]=!!o[x]});h.timer=+o.timer|0;h[k]=!h[k];
-  try{await G.net.setHide(G.code,h);G.meta.hide=h;renderLobby()}catch(e){writeErr(e)}
+  var o=hideObj(G.meta.hide);
+  if(k==='hcap')return setLobbyHide({hcap:o.hcap?'':(G.hcapPref||'tile')});
+  var ch={};ch[k]=!o[k];return setLobbyHide(ch);
+}
+async function toggleBeg(id){
+  if(!G.isHost||!G.meta)return;
+  var o=hideObj(G.meta.hide),i=o.beg.indexOf(id);
+  if(i>=0)o.beg.splice(i,1);else o.beg.push(id);
+  return setLobbyHide({beg:o.beg});
 }
 async function removeBot(id){
   if(!G.isHost)return;
   try{await G.net.lobbyRemove(G.code,id)}catch(e){writeErr(e)}
 }
+function rotated(players){
+  var o=players.slice(1).concat(players.slice(0,1));
+  return o.map(function(p){return {id:p.id,name:p.name,bot:p.bot,pers:p.pers,lvl:p.lvl,beg:!!p.beg}});
+}
 async function rematch(){
+  if(G.mode==='solo'&&G.state&&G.state.daily){startDaily();return}
   if(G.mode==='local'){
-    var defsL=G.state.players.map(function(p){return {id:p.id,name:p.name,bot:p.bot,pers:p.pers,lvl:p.lvl}});
-    var sl=E.newGame(defsL,null,{tycoon:G.state.tycoon!==false,hide:G.state.hide,rules:G.state.rules});sl.gid=newId();
+    var sl=E.newGame(rotated(G.state.players),null,{tycoon:G.state.tycoon!==false,hide:G.state.hide,rules:G.state.rules,keepOrder:true});sl.gid=newId();
     G.viewer=-1;G.meIdx=-1;G.sel=null;G.ui={};G.state=sl;saveSolo();onState();return;
   }
-  if(G.mode==='solo'){G.tycoon=(G.state.tycoon!==false);G.hide={timer:G.hide.timer|0,shares:!!(G.state.hide&&G.state.hide.shares),worth:!!(G.state.hide&&G.state.hide.worth),founders:!!(G.state.rules&&G.state.rules.founders),offers:!!(G.state.rules&&G.state.rules.offers)};startSolo(G.soloBots);return}
+  if(G.mode==='solo'){var r0=G.state.rules||{};G.tycoon=(G.state.tycoon!==false);G.hide=hideObj({timer:G.hide.timer|0,shares:!!(G.state.hide&&G.state.hide.shares),worth:!!(G.state.hide&&G.state.hide.worth),founders:!!r0.founders,offers:!!r0.offers,events:!!r0.events,hcap:r0.hcap||''});startSolo(G.soloBots);return}
   if(!G.isHost||!G.state)return;
-  var defs=G.state.players.map(function(p){return {id:p.id,name:p.name,bot:p.bot,pers:p.pers,lvl:p.lvl}});
-  var s=E.newGame(defs,null,{tycoon:G.state.tycoon!==false,hide:G.state.hide,rules:G.state.rules});s.gid=newId();
+  var s=E.newGame(rotated(G.state.players),null,{tycoon:G.state.tycoon!==false,hide:G.state.hide,rules:G.state.rules,keepOrder:true});s.gid=newId();
   G.sel=null;G.ui={};
   commit(s);
 }
@@ -1521,12 +1793,12 @@ function onState(){
   var myTurnPlace=(G.meIdx>=0&&E.actorOf(s)===G.meIdx&&s.phase==='place');
   if(!myTurnPlace)G.sel=null;
   else if(G.sel!=null&&s.players[G.meIdx].hand.indexOf(G.sel)<0)G.sel=null;
-  if(s.phase==='over')recordGame(s);
+  if(s.phase==='over'){recordGame(s);dailyFinish(s)}
   sfxCheck(s);
   timerArm(s);
   render();scheduleBot();
 }
-function render(){renderStatus();renderBoard();renderActions();renderHand();renderMarket();renderPlayers();renderLog();renderEnd()}
+function render(){E.useState(G.state);renderStatus();renderReact();renderBoard();renderActions();renderHand();renderMarket();renderPlayers();renderLog();renderEnd()}
 
 /* ---------- bots ---------- */
 function scheduleBot(){
@@ -1615,6 +1887,7 @@ function handleAction(a){
     case 'ono':humanAct({type:'respond',accept:false});return;
     case 'ocancel':humanAct({type:'cancelOffer'});return;
     case 'rematch':rematch();break;
+    case 'dailyboard':showScreen('daily');break;
     case 'home':leaveToHome();break;
     case 'tobot':{if(G.isHost&&G.mode==='multi'){var r=E.apply(s,{type:'toBot',index:+arg},-1);if(r.ok)commit(r.state)}break}
   }
@@ -1804,8 +2077,8 @@ function overHtml(s){
   var h='<h3>Final standings</h3><p class="muted" style="margin-top:2px">'+esc(s.over.reason)+' Majority and minority bonuses were paid and all shares sold.</p><div style="overflow-x:auto"><table class="tbl results"><thead><tr><th>Player</th><th>Cash</th><th>Bonuses</th><th>Shares</th><th>Total</th></tr></thead><tbody>';
   rs.forEach(function(r){h+='<tr class="'+(r.winner?'w':'')+'"><td>'+esc(r.name)+'</td><td>'+money(r.cash)+'</td><td>'+money(r.bonus)+'</td><td>'+money(r.sold)+'</td><td>'+money(r.total)+'</td></tr>'});
   h+='</tbody></table></div><div class="row" style="margin-top:12px">';
-  if(G.mode==='solo'||G.mode==='local')h+='<button class="btn" data-a="rematch">Play again</button>';
-  else if(G.isHost)h+='<button class="btn" data-a="rematch">Rematch with same players</button>';
+  if(G.mode==='solo'||G.mode==='local')h+='<button class="btn" data-a="rematch">'+(s.daily?'Try today\'s challenge again':(G.mode==='local'?'Play again (seats rotate)':'Play again'))+'</button>'+(s.daily?'<button class="btn alt" data-a="dailyboard">Daily board</button>':'');
+  else if(G.isHost)h+='<button class="btn" data-a="rematch">Rematch (seats rotate)</button>';
   else h+='<span class="muted">The host can start a rematch.</span>';
   h+='<button class="btn alt" data-a="home">Back to menu</button></div>';
   return h;
@@ -1816,7 +2089,7 @@ function renderMarket(){
   for(var c=1;c<=7;c++){
     var on=sz[c]>0,pr=on?E.price(c,sz[c]):0;
     if(on)tot+=pr*E.SHARES;
-    h+='<tr class="'+(on?'':'off')+'"><td><span class="cn">'+chainSw(c)+esc(CH[c].name)+(sz[c]>=11?' <span class="badge">safe</span>':'')+'</span></td><td>'+(on?sz[c]:'&ndash;')+'</td><td>'+(on?money(pr):'&ndash;')+'</td><td>'+(on?cap(pr*E.SHARES):'&ndash;')+'</td><td>'+E.bankLeft(s,c)+'</td></tr>';
+    h+='<tr class="'+(on?'':'off')+'"><td><span class="cn">'+chainSw(c)+esc(CH[c].name)+(sz[c]>=11?' <span class="badge">safe</span>':'')+'</span></td><td>'+(on?sz[c]:'&ndash;')+'</td><td>'+(on?money(pr)+((s.ev&&s.ev.co===c)?'<span class="evtag '+(s.ev.d>0?'up':'dn')+'" title="Market event">'+(s.ev.d>0?'&#9650;':'&#9660;')+'</span>':''):'&ndash;')+'</td><td>'+(on?cap(pr*E.SHARES):'&ndash;')+'</td><td>'+E.bankLeft(s,c)+'</td></tr>';
   }
   h+='<tr><td colspan="3" style="font-family:var(--body);font-weight:600">All companies</td><td style="font-weight:600">'+(tot?cap(tot):'&ndash;')+'</td><td></td></tr>';
   $('#market').innerHTML=h+'</tbody>';
