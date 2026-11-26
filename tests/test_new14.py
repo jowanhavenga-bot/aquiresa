@@ -27,8 +27,9 @@ with sync_playwright() as p:
     H.click('#hideEvents'); H.click('#hideHcap'); print('hcap seg visible:',H.is_visible('#hcapSeg'),'| pressed events/hcap:',H.get_attribute('#hideEvents','aria-pressed'),H.get_attribute('#hideHcap','aria-pressed'))
     print('beginner checkboxes visible:',H.is_visible('#lbeg0'))
     H.click('#hideHcap'); print('hcap seg hidden after off:',not H.is_visible('#hcapSeg'))
-    H.click('#prefDaily'); print('daily card hidden after toggle:',not H.is_visible('#dailyPanel')); H.click('#prefDaily')
-    print('descs:',[x[:50] for x in H.eval_on_selector_all('#hideEvents small, #hideHcap small, #prefDaily small, #prefReact small','e=>e.map(x=>x.textContent)')])
+    print('daily card always visible, no toggle:',H.is_visible('#dailyPanel') and not H.query_selector('#prefDaily'))
+    print('solo button in AI group:',H.evaluate("()=>!!document.querySelector('.grp #soloBtn')&&!!document.querySelector('.grp #botSeg')"))
+    print('descs:',[x[:50] for x in H.eval_on_selector_all('#hideEvents small, #hideHcap small, #prefReact small','e=>e.map(x=>x.textContent)')])
     # ---------- daily: same tiles for everyone ----------
     ca,A=mk(br,'Ann'); cb,B=mk(br,'Ben')
     outs=[]

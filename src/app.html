@@ -337,7 +337,6 @@ select{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid
               <button data-v="tile" aria-pressed="true">Beginner gets +1 tile</button><button data-v="cash" aria-pressed="false">Others start R1 500 lower</button>
             </div>
             <p class="fine" id="hcapNote" style="margin:0" hidden>Beginners are ticked in the lobby, in pass and play, and in solo it is you.</p>
-            <button type="button" class="opt" id="prefDaily" aria-pressed="true"></button>
           </section>
           <section class="grp">
             <h3>Secret mode</h3>
@@ -346,7 +345,7 @@ select{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid
             <p class="fine" id="hideNote" style="margin:0"></p>
           </section>
           <section class="grp">
-            <h3>AI opponents</h3>
+            <h3>Play solo against the AI</h3>
             <p class="sub">Level</p>
             <div class="seg" id="lvlSeg" role="group" aria-label="AI level">
               <button data-v="easy" aria-pressed="false">Easy</button><button data-v="normal" aria-pressed="true">Normal</button><button data-v="hard" aria-pressed="false">Hard</button>
@@ -356,6 +355,15 @@ select{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid
               <button data-v="mixed" aria-pressed="true">Mixed</button><button data-v="balanced" aria-pressed="false">Balanced</button><button data-v="cautious" aria-pressed="false">Cautious</button><button data-v="ruthless" aria-pressed="false">Ruthless</button><button data-v="chaotic" aria-pressed="false">Chaotic</button>
             </div>
             <p class="fine" id="aiNote" style="margin:0"></p>
+            <p class="sub">How many AI opponents?</p>
+            <div class="seg" id="botSeg" role="group" aria-label="Number of AI opponents">
+              <button data-n="1" aria-pressed="false">1</button><button data-n="2" aria-pressed="false">2</button>
+              <button data-n="3" aria-pressed="true">3</button><button data-n="4" aria-pressed="false">4</button><button data-n="5" aria-pressed="false">5</button>
+            </div>
+            <div class="row" style="margin-top:6px">
+              <button class="btn" id="soloBtn">Start solo game</button>
+              <button class="btn alt" id="resumeBtn" hidden>Resume solo game</button>
+            </div>
           </section>
           <section class="grp">
             <h3>Just for you</h3>
@@ -368,7 +376,7 @@ select{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid
       </div>
 
       <div class="modes wide">
-        <div class="panel stack mode" id="dailyPanel" hidden>
+        <div class="panel stack mode" id="dailyPanel">
           <h3>Daily challenge <span class="badge" id="dailyDate"></span></h3>
           <p class="muted" style="margin:0">One game a day, the same for everyone, so scores can be compared fairly.</p>
           <ul class="fine" style="margin:0;padding-left:18px">
@@ -378,20 +386,6 @@ select{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid
           </ul>
           <p class="note" id="dailyInfo" style="margin:0"></p>
           <div class="row go"><button class="btn" id="dailyBtn">Play today's challenge</button><button class="btn alt" id="dailyBoardBtn">Daily board</button></div>
-        </div>
-        <div class="panel stack mode">
-          <h3>Play solo against the AI</h3>
-          <div>
-            <p class="sub" style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">How many AI opponents?</p>
-            <div class="seg" id="botSeg" role="group" aria-label="Number of AI opponents">
-              <button data-n="1" aria-pressed="false">1</button><button data-n="2" aria-pressed="false">2</button>
-              <button data-n="3" aria-pressed="true">3</button><button data-n="4" aria-pressed="false">4</button><button data-n="5" aria-pressed="false">5</button>
-            </div>
-          </div>
-          <div class="row go">
-            <button class="btn" id="soloBtn">Start solo game</button>
-            <button class="btn alt" id="resumeBtn" hidden>Resume solo game</button>
-          </div>
         </div>
         <div class="panel stack mode">
           <h3>Play online with friends</h3>
@@ -600,7 +594,7 @@ function buildHome(){
   try{var hh=JSON.parse(store.get('asa-hide')||'{}');G.hide={shares:!!hh.shares,worth:!!hh.worth,founders:!!hh.founders,offers:!!hh.offers,timer:(+hh.timer>=0&&+hh.timer<=300)?(+hh.timer|0):0,events:!!hh.events,hcap:(hh.hcap==='tile'||hh.hcap==='cash')?hh.hcap:''};if(G.hide.hcap)G.hcapPref=G.hide.hcap}catch(e){}
   try{var pf=JSON.parse(store.get('asa-prefs')||'{}');G.prefs={sound:pf.sound!==false,preview:!!pf.preview,daily:pf.daily!==false,react:pf.react!==false}}catch(e){}
   try{var ai=JSON.parse(store.get('asa-ai')||'{}');if(['easy','normal','hard'].indexOf(ai.lvl)>=0)G.ai.lvl=ai.lvl;if(['mixed'].concat(PERS_LIST).indexOf(ai.pers)>=0)G.ai.pers=ai.pers}catch(e){}
-  ['Sound','Preview','Daily','React'].forEach(function(k){$('#pref'+k).addEventListener('click',function(){G.prefs[k.toLowerCase()]=!G.prefs[k.toLowerCase()];store.set('asa-prefs',JSON.stringify(G.prefs));setModeUi();if(k==='Sound'&&G.prefs.sound)sfxKaching(false)})});
+  ['Sound','Preview','React'].forEach(function(k){$('#pref'+k).addEventListener('click',function(){G.prefs[k.toLowerCase()]=!G.prefs[k.toLowerCase()];store.set('asa-prefs',JSON.stringify(G.prefs));setModeUi();if(k==='Sound'&&G.prefs.sound)sfxKaching(false)})});
   ['lvl','pers'].forEach(function(k){Array.prototype.forEach.call(document.querySelectorAll('#'+k+'Seg button'),function(b){b.addEventListener('click',function(){G.ai[k]=b.dataset.v;store.set('asa-ai',JSON.stringify(G.ai));setModeUi()})})});
   $('#recordsBtn').addEventListener('click',function(){showScreen('records')});
   $('#recBody').addEventListener('change',function(e){if(e.target&&e.target.id==='statSel'){RC.sel=e.target.value;fillStat()}});
@@ -669,7 +663,6 @@ var OPT_TXT={
   preview:['Payout preview','See what a merger tile would pay you before you place it.'],
   events:['Company events','Random South African news can raise or cut one company\'s share price by R100 for a round.'],
   hcap:['Handicap','Level the field: beginners get an extra tile, or everyone else starts with less cash.'],
-  daily:['Daily challenge','A new game every day with the same tiles for everyone, and a daily board for the best final cash.'],
   react:['Emoji reactions','Send and see quick emoji reactions in online games.']};
 function optFill(el,k,on){
   var t=OPT_TXT[k];
@@ -698,11 +691,11 @@ function setModeUi(){
   optFill($('#hideFounders'),'founders',!!G.hide.founders);optFill($('#hideOffers'),'offers',!!G.hide.offers);
   stepUi('#timerStep','#timerVal',G.hide.timer);
   optFill($('#hideEvents'),'events',!!G.hide.events);optFill($('#hideHcap'),'hcap',!!G.hide.hcap);
-  optFill($('#prefDaily'),'daily',!!G.prefs.daily);optFill($('#prefReact'),'react',!!G.prefs.react);
+  optFill($('#prefReact'),'react',!!G.prefs.react);
   $('#hcapSeg').hidden=!G.hide.hcap;$('#hcapNote').hidden=!G.hide.hcap;
   Array.prototype.forEach.call(document.querySelectorAll('#hcapSeg button'),function(b){b.setAttribute('aria-pressed',b.dataset.v===G.hide.hcap?'true':'false')});
   Array.prototype.forEach.call(document.querySelectorAll('#localNames .begchk'),function(el){el.hidden=!G.hide.hcap});
-  $('#dailyPanel').hidden=!G.prefs.daily;if(G.prefs.daily)dailyUi();
+  dailyUi();
   $('#hideNote').textContent=(G.hide.shares||G.hide.worth)?hideText({shares:G.hide.shares,worth:G.hide.worth}):'Off by default. Your own shares and cash always stay visible to you.';
   Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'),function(b){b.setAttribute('aria-pressed',(b.dataset.m==='tycoon')===G.tycoon?'true':'false')});
   $('#modeNote').textContent=G.tycoon?'The top 3 shareholders are paid on every merger and at the end: 10x, 5x and 3x the share price.':'The top 2 shareholders are paid on every merger and at the end: 10x and 5x the share price.';
