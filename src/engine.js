@@ -6,15 +6,32 @@
   var ROW_L = 'ABCDEFGHI';
   var EV = null; // active market event {co, d, text}, mirrors state.ev
   var HCAP_CASH = 1500;
-  var EVENTS = [
-    { co: 6, d: 100, text: 'Vodacom cuts data prices and customers flock in.' },
-    { co: 5, d: -100, text: 'Load shedding hits Nedbank branches.' },
-    { co: 3, d: 100, text: 'Takealot has a Black Friday rush.' },
-    { co: 4, d: -100, text: 'A network outage angers MTN customers.' },
-    { co: 7, d: 100, text: 'Woolworths festive season sales surge.' },
-    { co: 2, d: 100, text: 'Checkers Sixty60 deliveries boom.' },
-    { co: 1, d: -100, text: 'A warehouse strike delays Mr Price stock.' }
-  ];
+  // Every company has its own good-news and bad-news stories (+R100 / -R100 for one round).
+  var EVENTS = {
+    1: { up: ["Mr Price has a huge back-to-school sale.", "Mr Price opens new stores across the country.", "Mr Price's festive range sells out."],
+         dn: ["A warehouse strike delays Mr Price stock.", "Mr Price runs short of its best sellers.", "Mr Price shoppers cut back as budgets tighten."] },
+    2: { up: ["Checkers Sixty60 deliveries boom.", "Shoppers rush Checkers weekend specials.", "Checkers fills its stores with a record festive crowd."],
+         dn: ["A cold chain failure hits Checkers fresh produce.", "Load shedding spoils frozen stock at Checkers.", "Checkers delivery drivers go on strike."] },
+    3: { up: ["Takealot has a Black Friday rush.", "Takealot's Blue Dot Sale breaks records.", "Takealot launches faster delivery."],
+         dn: ["Courier delays pile up at Takealot.", "Takealot's website crashes on a sale day.", "A wave of returns hits Takealot."] },
+    4: { up: ["MTN's new data bundles are a hit.", "MTN signs a big new network deal.", "MTN's 5G rollout wins over customers."],
+         dn: ["A network outage angers MTN customers.", "Cable theft knocks out MTN towers.", "Customers complain about MTN data prices."] },
+    5: { up: ["Nedbank reports strong interest earnings.", "Nedbank's app wins thousands of new customers.", "Nedbank announces a surprise dividend."],
+         dn: ["Load shedding hits Nedbank branches.", "Nedbank's app goes down on payday.", "Nedbank faces a wave of loan defaults."] },
+    6: { up: ["Vodacom cuts data prices and customers flock in.", "A new network deal boosts Vodacom earnings.", "VodaPay surges in popularity."],
+         dn: ["Cable theft hits the Vodacom network.", "Customers leave Vodacom over a billing mix-up.", "A data breach scare hits Vodacom."] },
+    7: { up: ["Woolworths festive season sales surge.", "Woolworths' new fashion range sells out.", "Woolworths food halls break sales records."],
+         dn: ["A supplier recall hits Woolworths.", "Woolworths stores close during load shedding.", "Woolworths shoppers trade down to cheaper stores."] }
+  };
+  [
+    [1, 'Mr Price shoppers queue for a viral home range.', 'Cheap imports eat into Mr Price sales.'],
+    [2, 'A new Checkers Hyper opens to long queues.', 'A food safety recall hits Checkers.'],
+    [3, 'A viral gadget sells out on Takealot.', 'A Takealot warehouse is hit by load shedding.'],
+    [4, 'MTN MoMo transactions hit a new high.', 'A cable cut slows MTN\'s network.'],
+    [5, 'Nedbank lowers loan rates and attracts customers.', 'A card fraud scare hits Nedbank customers.'],
+    [6, 'Vodacom\'s new fibre deals are a hit.', 'Vodacom faces a regulator over data costs.'],
+    [7, 'Woolworths\' loyalty members spend more.', 'Woolworths premium prices put shoppers off.']
+  ].forEach(function (x) { EVENTS[x[0]].up.push(x[1]); EVENTS[x[0]].dn.push(x[2]); });
   function mk(seed) { // small seeded random generator
     var a = seed >>> 0;
     return function () { a = (a + 0x6D2B79F5) >>> 0; var t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -188,7 +205,7 @@
       return { id: d.id, name: d.name, bot: !!d.bot, beg: !!d.beg, c0: c0, pers: d.pers || 'balanced', lvl: d.lvl || 'normal', cash: c0, stocks: [0, 0, 0, 0, 0, 0, 0, 0], hand: [],
         st: { spent: 0, bought: 0, proceeds: 0, mbonus: 0, founded: 0, merges: 0, best: { amt: 0, chain: 0, kind: '', final: false } } };
     });
-    var s = { v: 2, rev: 0, tycoon: !(opts && opts.tycoon === false), hide: { shares: !!(opts && opts.hide && opts.hide.shares), worth: !!(opts && opts.hide && opts.hide.worth) }, rules: { founders: !!(opts && opts.rules && opts.rules.founders), offers: !!(opts && opts.rules && opts.rules.offers), timer: ((opts && opts.rules && +opts.rules.timer) | 0), events: !!(opts && opts.rules && opts.rules.events), hcap: (anyBeg ? hc : '') }, seed: Math.floor(rng() * 2147483646) + 1, round: 1, ev: null, mnote: null, founder: {}, oc: 0, offer: null, hist: [], players: players, board: [], bag: bag, discard: [], turn: 0, phase: 'place', pend: null, log: [], over: null };
+    var s = { v: 2, rev: 0, tycoon: !(opts && opts.tycoon === false), hide: { shares: !!(opts && opts.hide && opts.hide.shares), worth: !!(opts && opts.hide && opts.hide.worth) }, rules: { founders: !!(opts && opts.rules && opts.rules.founders), offers: !!(opts && opts.rules && opts.rules.offers), timer: ((opts && opts.rules && +opts.rules.timer) | 0), events: !!(opts && opts.rules && opts.rules.events), hcap: (anyBeg ? hc : '') }, seed: Math.floor(rng() * 2147483646) + 1, round: 1, ev: null, lastEv: 0, lastCo: 0, mnote: null, founder: {}, oc: 0, offer: null, hist: [], players: players, board: [], bag: bag, discard: [], turn: 0, phase: 'place', pend: null, log: [], over: null };
     for (i = 0; i < N; i++) s.board.push(null);
     // draw for first move: each draws a tile, it goes on the board unaligned.
     var draws = players.map(function (p) { var t = s.bag.shift(); s.board[t] = 0; return { p: p, t: t }; });
@@ -239,14 +256,21 @@
     } else s.phase = 'place';
   }
 
+  // Roughly one event every 3 to 4 rounds: never two rounds in a row, and never a gap longer than 6 rounds.
   function rollEvent(s) {
-    var r = mk((s.seed | 0) + (s.round | 0) * 7919);
-    if (r() > 0.55) return;
-    var sz = sizes(s.board), c = EVENTS.filter(function (e) { return sz[e.co] >= 2; });
+    var r = mk((s.seed | 0) + (s.round | 0) * 7919), gap = (s.round | 0) - (s.lastEv | 0);
+    if (gap < 2) return;
+    var p = gap >= 6 ? 1 : 0.3 + 0.1 * (gap - 2);
+    if (r() > p) return;
+    var sz = sizes(s.board), c = [];
+    for (var k = 1; k <= 7; k++) if (sz[k] >= 2) c.push(k);
     if (!c.length) return;
-    var e = c[Math.floor(r() * c.length)];
-    s.ev = { co: e.co, d: e.d, text: e.text, round: s.round };
-    addLog(s, 'Market event: ' + e.text + ' ' + CHAINS[e.co].name + ' share price ' + (e.d > 0 ? '+' : '-') + money(Math.abs(e.d)) + ' this round.');
+    var fresh = c.filter(function (x) { return x !== (s.lastCo | 0); });
+    if (fresh.length) c = fresh;
+    var co = c[Math.floor(r() * c.length)], up = r() < 0.5, list = EVENTS[co][up ? 'up' : 'dn'], text = list[Math.floor(r() * list.length)], d = up ? 100 : -100;
+    s.ev = { co: co, d: d, text: text, round: s.round };
+    s.lastEv = s.round; s.lastCo = co;
+    addLog(s, 'Market event: ' + text + ' ' + CHAINS[co].name + ' share price ' + (d > 0 ? '+' : '-') + money(Math.abs(d)) + ' this round.');
   }
   function endTurn(s) {
     var pl = s.players[s.turn];
