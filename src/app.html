@@ -260,9 +260,9 @@ select{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid
 .stage .mini b{aspect-ratio:1;border-radius:4px}
 .stage .mini b.n{animation:tpop .55s ease-out}
 .stage .mini b.f{animation:tfade .6s ease-out}
-.chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;min-height:30px}
-.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600;animation:tup .45s ease-out both}
-.chip:nth-child(2){animation-delay:.12s}.chip:nth-child(3){animation-delay:.24s}
+.tchips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;min-height:30px}
+.tchip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600;animation:tup .45s ease-out both}
+.tchip:nth-child(2){animation-delay:.12s}.tchip:nth-child(3){animation-delay:.24s}
 .bars{display:grid;gap:8px}
 .bar{display:grid;grid-template-columns:34px 1fr auto;gap:8px;align-items:center;font-size:13px}
 .bar span{color:var(--muted);font-family:var(--mono)}
@@ -277,7 +277,7 @@ select{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid
 @keyframes tfade{from{opacity:.2}to{opacity:1}}
 @keyframes tup{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
 @keyframes tgrow{from{width:0}to{width:var(--w)}}
-@media (prefers-reduced-motion:reduce){.stage *,.chip,.bar i{animation:none!important}.opt .sw2,.opt .sw2::after{transition:none}}
+@media (prefers-reduced-motion:reduce){.stage *,.tchip,.bar i{animation:none!important}.opt .sw2,.opt .sw2::after{transition:none}}
 </style>
 
 <div class="shell">
@@ -1276,7 +1276,7 @@ function tourFrameHtml(fr){
   var h='';
   if(fr.g)h+=miniGrid(fr.g);
   if(fr.b){h+='<div class="bars">';fr.b.forEach(function(x){h+='<div class="bar"><span>'+x[0]+'</span><i style="--w:'+x[1]+'"></i><b>'+x[2]+'</b></div>'});h+='</div>'}
-  if(fr.c){h+='<div class="chips">';fr.c.forEach(function(x){h+='<span class="chip">'+x+'</span>'});h+='</div>'}
+  if(fr.c){h+='<div class="tchips">';fr.c.forEach(function(x){h+='<span class="tchip">'+x+'</span>'});h+='</div>'}
   return h;
 }
 function tourShow(k){
