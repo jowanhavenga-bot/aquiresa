@@ -232,7 +232,7 @@ details.rules li{margin:5px 0;max-width:70ch}
 .mode h3{font-size:18px}
 .mode .go{margin-top:auto}
 @media (min-width:700px){.setup-top{grid-template-columns:1fr 1fr}.groups{grid-template-columns:1fr 1fr}}
-@media (min-width:1000px){.modes{grid-template-columns:1fr 1fr 1fr}}
+@media (min-width:700px){.modes{grid-template-columns:1fr 1fr}}
 #lobbyHide{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface)}
 #lobbyHide[hidden]{display:none}
 select{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:44px;min-width:0;width:100%}
@@ -367,12 +367,18 @@ select{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid
         </div>
       </div>
 
-      <div class="panel wide row dailycard" id="dailyPanel" hidden style="justify-content:space-between">
-        <div style="min-width:0"><h3 style="margin:0">Daily challenge <span class="badge" id="dailyDate"></span></h3><p class="muted" style="margin:4px 0 0;max-width:60ch" id="dailyInfo"></p></div>
-        <div class="row"><button class="btn" id="dailyBtn">Play today's challenge</button><button class="btn alt" id="dailyBoardBtn">Daily board</button></div>
-      </div>
-
       <div class="modes wide">
+        <div class="panel stack mode" id="dailyPanel" hidden>
+          <h3>Daily challenge <span class="badge" id="dailyDate"></span></h3>
+          <p class="muted" style="margin:0">One game a day, the same for everyone, so scores can be compared fairly.</p>
+          <ul class="fine" style="margin:0;padding-left:18px">
+            <li>Fixed rules: classic Tycoon payouts, no extras, no handicap.</li>
+            <li>Fixed opponents: 3 AIs at normal level. Your own settings do not apply.</li>
+            <li>Same starting tiles for everyone. Best final cash counts.</li>
+          </ul>
+          <p class="note" id="dailyInfo" style="margin:0"></p>
+          <div class="row go"><button class="btn" id="dailyBtn">Play today's challenge</button><button class="btn alt" id="dailyBoardBtn">Daily board</button></div>
+        </div>
         <div class="panel stack mode">
           <h3>Play solo against the AI</h3>
           <div>
@@ -1836,19 +1842,24 @@ function dailyAdd(o,date,n,c){
 function dailyUi(){
   var o=dailyLoad(),t=dailyDate(),d=o.d[t],k=recKey(getName()),mine=d&&d.b[k];
   $('#dailyDate').textContent=dailyNice(t);
-  $('#dailyInfo').textContent='Same tiles and same AI opponents for everyone today. '+(mine?'Your best today: '+E.money(mine.c)+(d.tries?' in '+d.tries+' tr'+(d.tries===1?'y':'ies'):'')+'.':'You have not played today yet.');
+  var op=dailyDefs(t,'x').defs.slice(1).map(function(x){return x.name+' ('+x.pers+')'}).join(', ');
+  $('#dailyInfo').textContent='Today\'s opponents: '+op+'. '+(mine?'Your best today: '+E.money(mine.c)+(d.tries?' in '+d.tries+' tr'+(d.tries===1?'y':'ies'):'')+'.':'You have not played today yet.');
 }
-function startDaily(){
-  var date=dailyDate(),name=getName();store.set('asa-name',name);
+function dailyDefs(date,name){
   var rng=E.rngFromSeed(hashStr('acquire-sa-daily-'+date)),pool=PERS_LIST.slice(),i,j,t;
   for(i=pool.length-1;i>0;i--){j=Math.floor(rng()*(i+1));t=pool[i];pool[i]=pool[j];pool[j]=t}
-  var defs=[{id:'you',name:name,bot:false}],used=[name.toLowerCase()];
+  var defs=[{id:'you',name:name,bot:false}];
   pool.slice(0,3).forEach(function(pe,k){
     var list=PERS_NAMES[pe],nm=list[Math.floor(rng()*list.length)];
     defs.push({id:'dbot'+k,name:nm,bot:true,pers:pe,lvl:'normal'});
   });
   defs.slice(1).forEach(function(d){if(d.name.toLowerCase()===name.toLowerCase())defs[0].name=name+' 2'});
-  var s=E.newGame(defs,rng,{tycoon:true,hide:{},rules:{}});s.gid=newId();s.daily=date;
+  return {defs:defs,rng:rng};
+}
+function startDaily(){
+  var date=dailyDate(),name=getName();store.set('asa-name',name);
+  var d=dailyDefs(date,name);
+  var s=E.newGame(d.defs,d.rng,{tycoon:true,hide:{},rules:{}});s.gid=newId();s.daily=date;
   G.mode='solo';G.state=s;G.meIdx=s.players.findIndex(function(p){return p.id==='you'});G.soloBots=3;G.sel=null;G.ui={};
   saveSolo();showScreen('game');onState();
 }
